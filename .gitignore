@@ -1,0 +1,28 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Runtime state (SQLite DB, index cache, rendered page images)
+var/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Eval reports
+backend/eval/reports/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

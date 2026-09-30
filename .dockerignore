@@ -1,0 +1,10 @@
+.git
+.env
+.env.*
+!.env.example
+var/
+**/__pycache__
+**/.pytest_cache
+**/node_modules
+frontend/dist
+backend/eval/reports
