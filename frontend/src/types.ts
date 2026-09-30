@@ -83,7 +83,7 @@ export interface DocumentInfo {
   title: Record<string, string>;
   insurer: string;
   product_type: string;
-  doc_type: string;
+  doc_type: Record<string, string>;
   version: string;
   pages: number;
   override_pages: number[];

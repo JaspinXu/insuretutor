@@ -10,7 +10,10 @@ documents:
       zh-Hans: 首选灵活万用寿险计划
     insurer: YF Life Insurance International Ltd. (萬通保險國際有限公司)
     product_type: Universal Life Insurance (Non-Linked)
-    doc_type: Product brochure
+    doc_type:
+      en: Product brochure
+      zh-Hant: 產品小冊子
+      zh-Hans: 产品小册子
     version: PSP-137-V3-0925B
     languages: [zh-Hant, en]
     # Cover, marketing overview, disclaimer and company pages: kept searchable but

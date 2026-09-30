@@ -52,7 +52,7 @@ class DocumentInfo:
     title: dict[str, str]
     insurer: str = ""
     product_type: str = ""
-    doc_type: str = ""
+    doc_type: dict[str, str] = field(default_factory=dict)
     version: str = ""
     languages: list[str] = field(default_factory=list)
     text_fixes: dict[str, str] = field(default_factory=dict)
@@ -60,8 +60,18 @@ class DocumentInfo:
     low_priority_pages: list[int] = field(default_factory=list)
     page_count: int = 0
 
+    def __post_init__(self) -> None:
+        # Catalog fields that may be given as one string or per language.
+        if isinstance(self.title, str):
+            self.title = {"en": self.title}
+        if isinstance(self.doc_type, str):
+            self.doc_type = {"en": self.doc_type} if self.doc_type else {}
+
     def display_title(self, lang: str = "en") -> str:
         return self.title.get(lang) or self.title.get("en") or self.id
+
+    def display_doc_type(self, lang: str = "en") -> str:
+        return self.doc_type.get(lang) or self.doc_type.get("en") or ""
 
 
 @dataclass

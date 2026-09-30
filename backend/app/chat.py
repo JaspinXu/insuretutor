@@ -104,7 +104,7 @@ class ChatService:
         self.canary = f"IT-CANARY-{secrets.token_hex(8)}"
         self.documents = retriever.corpus.documents
         described = "\n".join(
-            f"- {d.display_title('en')} / {d.display_title('zh-Hant')} — {d.insurer}; {d.product_type}; {d.doc_type}"
+            f"- {d.display_title('en')} / {d.display_title('zh-Hant')} — {d.insurer}; {d.product_type}; {d.display_doc_type('en')}"
             for d in self.documents
         )
         self.router = Router(llm, described, retriever.glossary)

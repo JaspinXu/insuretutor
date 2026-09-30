@@ -71,7 +71,7 @@ export default function Sidebar({ lang, config, open, conversations, activeId, o
               <div>
                 <div className="doc-mini-title">{doc.title[lang] ?? doc.title.en}</div>
                 <div className="doc-mini-meta">
-                  {doc.doc_type} · {t(lang, "pages", { n: doc.pages })}
+                  {doc.doc_type[lang] ?? doc.doc_type.en} · {t(lang, "pages", { n: doc.pages })}
                 </div>
               </div>
             </a>
