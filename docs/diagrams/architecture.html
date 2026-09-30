@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>InsureTutor architecture</title>
+<!-- Source of docs/images/architecture-{light,dark}.png. Render: python docs/diagrams/render.py -->
+<style>
+  :root {
+    --page: #ffffff; --lane: #f5f7fb; --lane-line: #e3e8f1; --card: #ffffff; --line: #d7deea;
+    --ink: #0f1b2d; --ink-2: #3b4a5f; --muted: #6b778b; --arrow: #9aa7ba;
+    --guard-bg: #eaf6ef; --guard-ink: #17613b; --guard-line: #b9dfc8;
+    --llm-bg: #eef2fd; --llm-ink: #2447a0; --llm-line: #c9d6f5;
+    --rag-bg: #e7f6f5; --rag-ink: #0b6f6c; --rag-line: #b5e1de;
+    --data-bg: #f7f3ea; --data-ink: #7a5a12; --data-line: #eadbb8;
+    --chip-bg: #0f2d57; --chip-ink: #ffffff;
+  }
+  .dark {
+    --page: #0d1320; --lane: #131b2a; --lane-line: #243047; --card: #182234; --line: #2b3850;
+    --ink: #eef3fb; --ink-2: #c3cddd; --muted: #8d9ab0; --arrow: #5d6b84;
+    --guard-bg: #10281d; --guard-ink: #7fd4a3; --guard-line: #1f4a33;
+    --llm-bg: #151f3b; --llm-ink: #9db5f5; --llm-line: #2a3a68;
+    --rag-bg: #0f2a2b; --rag-ink: #6fd3cf; --rag-line: #1d4a4a;
+    --data-bg: #2a2314; --data-ink: #e3c47a; --data-line: #4a3d20;
+    --chip-bg: #2f6fd0; --chip-ink: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { background: transparent; }
+  body { font-family: "Inter", "Helvetica Neue", Arial, "WenQuanYi Zen Hei", sans-serif; color: var(--ink); }
+  .frame { width: 1120px; padding: 28px; background: var(--page); border-radius: 22px; border: 1px solid var(--lane-line); }
+  .title { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 18px; }
+  .title h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+  .title span { font-size: 14px; color: var(--muted); }
+
+  .lane { background: var(--lane); border: 1px solid var(--lane-line); border-radius: 16px; padding: 16px 18px 18px; position: relative; }
+  .lane-label { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); column-gap: 30px; }
+
+  .chip { display: inline-flex; align-items: center; gap: 8px; background: var(--chip-bg); color: var(--chip-ink);
+          border-radius: 999px; padding: 8px 14px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .chip svg { width: 16px; height: 16px; }
+  .io { display: flex; flex-direction: column; align-items: flex-start; gap: 0; }
+  .io.right { align-items: flex-end; }
+  .io .sub { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+  .vline { width: 2px; height: 22px; background: var(--arrow); margin: 6px 0 0 26px; position: relative; }
+  .io.right .vline { margin: 0 26px 6px 0; }
+  .vline.down::after, .vline.up::after { content: ""; position: absolute; left: -5px; border: 6px solid transparent; }
+  .vline.down::after { bottom: -9px; border-top: 8px solid var(--arrow); }
+  .vline.up::after { top: -9px; border-bottom: 8px solid var(--arrow); }
+
+  .stage { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 13px 13px; min-height: 164px;
+           box-shadow: 0 1px 2px rgba(15,27,45,.05); }
+  .stage + .stage::before { content: ""; position: absolute; left: -26px; top: 50%; width: 20px; height: 2px; background: var(--arrow); }
+  .stage + .stage::after { content: ""; position: absolute; left: -8px; top: calc(50% - 5px); border: 6px solid transparent; border-left: 8px solid var(--arrow); }
+  .stage .head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .badge { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; flex: none; border: 1px solid; }
+  .badge svg { width: 17px; height: 17px; }
+  .n { font-size: 12px; font-weight: 700; color: var(--muted); }
+  .stage h3 { font-size: 15.5px; font-weight: 700; line-height: 1.2; }
+  .stage ul { list-style: none; padding: 0; font-size: 12.8px; line-height: 1.45; color: var(--ink-2); }
+  .stage li { padding-left: 11px; position: relative; }
+  .stage li::before { content: ""; position: absolute; left: 0; top: .6em; width: 4px; height: 4px; border-radius: 50%; background: var(--arrow); }
+  .guard .badge { background: var(--guard-bg); color: var(--guard-ink); border-color: var(--guard-line); }
+  .llm .badge { background: var(--llm-bg); color: var(--llm-ink); border-color: var(--llm-line); }
+  .rag .badge { background: var(--rag-bg); color: var(--rag-ink); border-color: var(--rag-line); }
+  .data .badge { background: var(--data-bg); color: var(--data-ink); border-color: var(--data-line); }
+  .guard { border-top: 3px solid var(--guard-ink); }
+  .llm { border-top: 3px solid var(--llm-ink); }
+  .rag { border-top: 3px solid var(--rag-ink); }
+  .data { border-top: 3px solid var(--data-ink); }
+
+  .exit { margin-top: 16px; border: 1.5px dashed var(--line); border-radius: 12px; padding: 9px 14px; font-size: 13px; color: var(--ink-2);
+          display: flex; align-items: center; gap: 10px; background: var(--card); }
+  .exit b { color: var(--ink); }
+  .exit svg { width: 16px; height: 16px; color: var(--guard-ink); flex: none; }
+
+  .links { display: grid; grid-template-columns: repeat(5, 1fr); column-gap: 30px; height: 40px; }
+  .link { position: relative; }
+  .link .bar { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--arrow); }
+  .link .bar::after { content: ""; position: absolute; top: -2px; left: -5px; border: 6px solid transparent; border-bottom: 8px solid var(--arrow); transform: translateY(-6px); }
+  .link .bar.dashed { background: repeating-linear-gradient(to bottom, var(--arrow) 0 5px, transparent 5px 9px); }
+  .link .bar.dashed::after { display: none; }
+  .link .bar.dashed.down::before { content: ""; position: absolute; bottom: -8px; left: -5px; border: 6px solid transparent; border-top: 8px solid var(--arrow); }
+  .link span { position: absolute; left: calc(50% + 10px); top: 11px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+  .lane.build { padding-top: 14px; }
+  .lane.build .stage { min-height: 128px; }
+  .flow .stage + .stage::before, .flow .stage + .stage::after { display: block; }
+  .noflow::before, .noflow::after { display: none !important; }
+
+  .legend { display: flex; gap: 22px; margin-top: 16px; font-size: 13px; color: var(--ink-2); align-items: center; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: 7px; vertical-align: -1px; }
+  .legend .stack { margin-left: auto; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="frame" id="frame">
+  <div class="title">
+    <h1>How InsureTutor answers a question</h1>
+    <span>FastAPI · React · one Docker container</span>
+  </div>
+
+  <div class="lane">
+    <div class="lane-label">Every chat turn · streamed over SSE</div>
+    <div class="grid" style="margin-bottom: 2px;">
+      <div class="io">
+        <div class="chip"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg> Question in EN · 简 · 繁</div>
+        <div class="vline down"></div>
+      </div>
+      <div></div><div></div><div></div>
+      <div class="io right" style="flex-direction: column-reverse;">
+        <div class="vline up"></div>
+        <div class="chip"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/></svg> Answer with [n] citations</div>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top: 8px;">
+      <div class="stage guard">
+        <div class="head"><div class="badge"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></div><div><div class="n">1</div><h3>Input guard</h3></div></div>
+        <ul><li>Sanitise &amp; redact PII</li><li>Block injection, fraud, self-harm</li><li>Deterministic, bilingual, obfuscation-proof</li></ul>
+      </div>
+      <div class="stage llm">
+        <div class="head"><div class="badge"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/></svg></div><div><div class="n">2</div><h3>Router</h3></div></div>
+        <ul><li>One structured LLM call</li><li>Intent · standalone question</li><li>EN + 繁 search queries</li></ul>
+      </div>
+      <div class="stage rag">
+        <div class="head"><div class="badge"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><circle cx="11.5" cy="14.5" r="2.5"/><path d="M13.3 16.3 15 18"/></svg></div><div><div class="n">3</div><h3>Hybrid retrieval</h3></div></div>
+        <ul><li>BM25 + multilingual embeddings</li><li>Rank fusion (RRF) · glossary</li><li>Relevance gate</li></ul>
+      </div>
+      <div class="stage llm">
+        <div class="head"><div class="badge"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/><path d="M7 11h10"/><path d="M7 15h6"/><path d="M7 7h8"/></svg></div><div><div class="n">4</div><h3>Grounded answer</h3></div></div>
+        <ul><li>Streamed, cites every claim [n]</li><li>“Not in the documents” over guessing</li><li>Answers in the asker’s script</li></ul>
+      </div>
+      <div class="stage guard">
+        <div class="head"><div class="badge"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m16 9-5.5 5.5L8 12"/></svg></div><div><div class="n">5</div><h3>Output guard</h3></div></div>
+        <ul><li>Validate citations</li><li>Every figure must be in a source</li><li>Leak canary · 简/繁 script</li></ul>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="links">
+    <div class="link"></div>
+    <div class="link"></div>
+    <div class="link"><div class="bar"></div><span>top-6 passages</span></div>
+    <div class="link"><div class="bar"></div><span>used by ② and ④</span></div>
+    <div class="link"><div class="bar dashed down"></div><span>saved after ⑤</span></div>
+  </div>
+
+  <div class="lane build">
+    <div class="lane-label">Built once per document set · cached by fingerprint</div>
+    <div class="grid flow">
+      <div class="stage data">
+        <div class="head"><div class="badge"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></div><h3>PDF + catalog</h3></div>
+        <ul><li>Brochure (繁 + EN, 20 pages)</li><li>Font errata fixes</li><li>5 human-verified table pages</li></ul>
+      </div>
+      <div class="stage data">
+        <div class="head"><div class="badge"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8h8"/><path d="M7 12h10"/><path d="M7 16h6"/></svg></div><h3>Layout-aware chunks</h3></div>
+        <ul><li>PyMuPDF, reading order kept</li><li>Heading-aware, one page each</li><li>47 bilingual chunks</li></ul>
+      </div>
+      <div class="stage rag">
+        <div class="head"><div class="badge"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></svg></div><h3>Search index</h3></div>
+        <ul><li>Bilingual BM25 (简⇄繁, bigrams)</li><li>Local ONNX embeddings</li><li>No vector DB needed</li></ul>
+      </div>
+      <div class="stage llm noflow">
+        <div class="head"><div class="badge"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg></div><h3>LLM provider</h3></div>
+        <ul><li>Claude (Anthropic SDK)</li><li>OpenAI or compatible APIs</li><li>No key → offline passages</li></ul>
+      </div>
+      <div class="stage data noflow">
+        <div class="head"><div class="badge"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg></div><h3>SQLite</h3></div>
+        <ul><li>Conversations per browser</li><li>👍 / 👎 feedback</li><li>Timings, tokens, guard flags</li></ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="exit"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg> <span><b>Early exits:</b> any stage can end the turn with a reviewed EN / 简 / 繁 message — an injection attempt never reaches the LLM, an unsupported question gets “not in the documents”.</span></div>
+  <div class="legend">
+    <span><i style="background: var(--guard-ink)"></i>Deterministic guard</span>
+    <span><i style="background: var(--llm-ink)"></i>LLM</span>
+    <span><i style="background: var(--rag-ink)"></i>Retrieval</span>
+    <span><i style="background: var(--data-ink)"></i>Data &amp; storage</span>
+    <span class="stack">Click a citation → the PDF page with the passage highlighted</span>
+  </div>
+</div>
+<script>
+  if (new URLSearchParams(location.search).get("theme") === "dark") document.documentElement.classList.add("dark");
+</script>
+</body>
+</html>

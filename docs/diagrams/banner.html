@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>InsureTutor banner</title>
+<!-- Source of docs/images/banner.png. Render: python docs/diagrams/render.py -->
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { background: transparent; }
+  body { font-family: "Inter", "Helvetica Neue", Arial, "WenQuanYi Zen Hei", sans-serif; }
+  .frame {
+    position: relative; width: 1280px; height: 440px; overflow: hidden; border-radius: 24px; color: #fff;
+    background:
+      radial-gradient(520px 380px at 88% 8%, rgba(56, 189, 186, .35), transparent 70%),
+      radial-gradient(600px 420px at 8% 110%, rgba(47, 111, 208, .45), transparent 70%),
+      linear-gradient(135deg, #0a1f3d 0%, #143866 55%, #0f6f7a 100%);
+  }
+  .dots { position: absolute; inset: 0; opacity: .12;
+    background-image: radial-gradient(#fff 1px, transparent 1.2px); background-size: 22px 22px;
+    mask-image: linear-gradient(90deg, #000 0%, transparent 55%); }
+  .copy { position: absolute; left: 56px; top: 50px; width: 560px; }
+  .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 30px; }
+  .logo { width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center;
+    background: linear-gradient(135deg, #2f6fd0, #0f9d9a); box-shadow: 0 8px 24px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.25); }
+  .logo svg { width: 28px; height: 28px; }
+  .brand b { font-size: 28px; letter-spacing: -.01em; }
+  .brand span { display: block; font-size: 14px; color: #a9bddb; margin-top: 2px; }
+  h1 { font-size: 40px; line-height: 1.12; letter-spacing: -.02em; font-weight: 750; }
+  .zh { margin-top: 12px; font-size: 20px; color: #cfe0f7; letter-spacing: .02em; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; font-size: 14.5px; font-weight: 600;
+    background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.22); backdrop-filter: blur(4px); }
+  .chip svg { width: 16px; height: 16px; color: #7fe0da; }
+
+  .shot { position: absolute; left: 650px; top: 58px; width: 820px; border-radius: 14px; overflow: hidden;
+    background: #fff; box-shadow: 0 30px 80px rgba(0, 8, 24, .55), 0 0 0 1px rgba(255,255,255,.15);
+    transform: perspective(1800px) rotateY(-13deg) rotateX(5deg) rotateZ(1deg); transform-origin: left center; }
+  .bar { height: 30px; background: #eef2f8; display: flex; align-items: center; gap: 7px; padding: 0 12px; border-bottom: 1px solid #dde4ef; }
+  .bar i { width: 11px; height: 11px; border-radius: 50%; background: #d4dbe6; }
+  .bar i:nth-child(1) { background: #f26d5f; } .bar i:nth-child(2) { background: #f5bf4f; } .bar i:nth-child(3) { background: #5ccb69; }
+  .bar span { margin-left: 14px; flex: 0 0 300px; height: 18px; border-radius: 6px; background: #fff; border: 1px solid #dde4ef;
+    font-size: 11px; color: #7a869a; display: flex; align-items: center; padding-left: 10px; }
+  .shot img { display: block; width: 100%; }
+</style>
+</head>
+<body>
+<div class="frame" id="frame">
+  <div class="dots"></div>
+  <div class="copy">
+    <div class="brand">
+      <div class="logo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg></div>
+      <div><b>InsureTutor</b><span>AI tutor for insurance plans</span></div>
+    </div>
+    <h1>Understand your insurance plan — in your language.</h1>
+    <div class="zh">用你的語言讀懂保險計劃 · 用你的语言读懂保险计划</div>
+    <div class="chips">
+      <span class="chip"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg> English · 简体 · 繁體</span>
+      <span class="chip"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><circle cx="11.5" cy="14.5" r="2.5"/><path d="M13.3 16.3 15 18"/></svg> Cites the exact page</span>
+      <span class="chip"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg> 5 layers of guardrails</span>
+    </div>
+  </div>
+  <div class="shot">
+    <div class="bar"><i></i><i></i><i></i><span>localhost:8000</span></div>
+    <img src="../screenshots/answer-and-source.png" alt="" />
+  </div>
+</div>
+</body>
+</html>
