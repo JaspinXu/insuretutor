@@ -106,7 +106,7 @@ backend/
     store.py       SQLite persistence            api/routes.py  HTTP + SSE endpoints
     lang.py        language / script detection   main.py      app factory
   eval/            run.py + datasets/ (retrieval, guardrails, answers)
-  tests/           106 tests: ingestion, retrieval, guardrails, providers, end-to-end API
+  tests/           108 tests: ingestion, retrieval, guardrails, providers, end-to-end API
 frontend/          React + TypeScript + Vite (chat, citations, source viewer, i18n)
 data/
   docs/            FLEXI-ULife_Prime_Saver.pdf + catalog.yaml (metadata, font errata)
@@ -237,7 +237,7 @@ These cases were written alongside the rules, so this is a regression suite rath
 ### Tests
 
 ```bash
-cd backend && pip install -r requirements-dev.txt && pytest     # 106 tests, ~10 s, no API key needed
+cd backend && pip install -r requirements-dev.txt && pytest     # 108 tests, ~10 s, no API key needed
 ```
 
 Covering extraction and chunk coverage, tokenizer/BM25/glossary, per-language retrieval, PII and injection patterns (and their false positives), output checks, both LLM adapters against a fake wire-format server, and the full API with a scripted LLM (grounded answer, hallucinated figure flagged, invalid citation removed, prompt leak blocked, script conversion, offline mode, LLM failure fallback, history & client scoping, rate limiting, page rendering).

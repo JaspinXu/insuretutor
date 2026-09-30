@@ -122,6 +122,13 @@ def test_unsupported_numbers_are_flagged():
     assert out.unverified_numbers == ["400"] and "unverified_numbers" in out.flags
 
 
+def test_numbers_inside_chinese_text_are_checked():
+    out = _check("失業時可暫停繳費長達400日 [1]。", lang="zh-Hant")
+    assert out.unverified_numbers == ["400"]
+    assert _check("失業時可暫停繳費長達365日 [1]。", lang="zh-Hant").unverified_numbers == []
+    assert numbers_in("MOP40,000及HK$400,000") == {"40000", "400000"}
+
+
 def test_numbers_from_the_question_are_allowed():
     assert _check("For US$200,000 that is up to 365 days [1].", allowed="my sum insured is US$200,000").flags == []
 
@@ -145,6 +152,12 @@ def test_answer_script_is_forced():
 )
 def test_heuristic_router_declines_non_insurance_questions(text):
     assert heuristic_route(text, []).intent == "out_of_scope"
+
+
+def test_heuristic_router_follow_ups():
+    history = [{"role": "user", "content": "What is the Level Benefit death benefit?"}]
+    assert heuristic_route("And the Incremental one?", history).intent == "plan_question"
+    assert heuristic_route("What's the capital of France?", history).intent == "out_of_scope"
 
 
 def test_heuristic_router():
