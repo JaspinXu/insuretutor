@@ -84,10 +84,31 @@ def detect_language(text: str, fallback: Lang = "en") -> Lang:
     return "en"
 
 
+# Clause boundaries for convert_script (kept in the output by the capturing group).
+_CLAUSE_SPLIT_RE = re.compile(r"([\s，。；：！？、,.;:!?（）()「」『』【】\[\]])")
+
+
+@cache
+def _foreign_char(ch: str, config: str) -> bool:
+    """True if `ch` changes under a character-level `config` conversion."""
+    return _converter(config).convert(ch) != ch
+
+
 def convert_script(text: str, lang: Lang) -> str:
-    """Force Chinese text into the requested script (no-op for English)."""
-    if lang == "zh-Hans":
-        return to_simplified(text)
-    if lang == "zh-Hant":
-        return to_traditional(text)
-    return text
+    """Force Chinese text into the requested script (no-op for English).
+
+    Only clauses that contain a character of the *other* script are converted.
+    OpenCC's phrase rules are not idempotent on text that is already in the
+    target script (s2t turns the brochure's "最多只可" into "最多隻可"), and
+    answers quote the brochure verbatim, so those quotes must pass through
+    untouched while clauses the model drifted into the wrong script are fixed
+    with full phrase context.
+    """
+    if lang == "en":
+        return text
+    config = "t2s" if lang == "zh-Hans" else "s2t"
+    converter = _converter(config)
+    return "".join(
+        converter.convert(part) if any(is_cjk_char(c) and _foreign_char(c, config) for c in part) else part
+        for part in _CLAUSE_SPLIT_RE.split(text)
+    )

@@ -29,3 +29,12 @@ def test_convert_script_matches_brochure_glyphs():
     assert convert_script("账户价值", "zh-Hant") == "賬戶價值"
     assert convert_script("賬戶價值", "zh-Hans") == "账户价值"
     assert convert_script("Account Value", "zh-Hans") == "Account Value"
+
+
+def test_convert_script_leaves_text_already_in_the_target_script():
+    # Phrase-level s2t would turn 只 into 隻 here; quotes from the brochure must survive.
+    quote = "此權益最多只可行使兩次。"
+    assert convert_script(quote, "zh-Hant") == quote
+    # ...while a clause the model wrote in the wrong script is still converted.
+    assert convert_script(quote + "账户价值会增加", "zh-Hant") == quote + "賬戶價值會增加"
+    assert convert_script("只可行使两次，賬戶價值", "zh-Hans") == "只可行使两次，账户价值"
