@@ -1,0 +1,45 @@
+{"id": "gio-limit-en", "lang": "en", "q": "How much can I increase my cover with the Guaranteed Insurability Option, and how many times?", "pages": [12, 16]}
+{"id": "gio-limit-hans", "lang": "zh-Hans", "q": "保证可保权益每次最多可以增加多少保障额？可以用几次？", "pages": [12, 16]}
+{"id": "gio-limit-hant", "lang": "zh-Hant", "q": "保證可保權益每次最多可以增加多少保障額？可以用幾次？", "pages": [12, 16]}
+{"id": "gio-events-en", "lang": "en", "q": "Can I increase my coverage without a medical check when I get married or have a baby?", "pages": [6, 12]}
+{"id": "peo-age-hant", "lang": "zh-Hant", "q": "保單增值權益有效到幾歲？", "pages": [12, 6]}
+{"id": "death-options-en", "lang": "en", "q": "What are the death benefit options and how is each calculated?", "pages": [7, 16]}
+{"id": "death-options-hans", "lang": "zh-Hans", "q": "固定寿险保障和递增寿险保障的身故赔偿有什么分别？", "pages": [7]}
+{"id": "incremental-hant", "lang": "zh-Hant", "q": "漸進壽險保障的身故保障怎樣計算？", "pages": [7, 12]}
+{"id": "guaranteed-rate-en", "lang": "en", "q": "Is there a guaranteed minimum interest rate on the account value?", "pages": [8, 16]}
+{"id": "guaranteed-rate-hans", "lang": "zh-Hans", "q": "长线保证利率是多少？要持有多少年？", "pages": [8, 16]}
+{"id": "base-rate-en", "lang": "en", "q": "Is the 4% crediting interest rate guaranteed?", "pages": [8, 16]}
+{"id": "base-rate-hant", "lang": "zh-Hant", "q": "4%的基本派息率是保證的嗎？", "pages": [8, 16]}
+{"id": "extra-bonus-en", "lang": "en", "q": "How is the Extra Bonus calculated and when is it paid?", "pages": [9, 16]}
+{"id": "extra-bonus-hans", "lang": "zh-Hans", "q": "额外回报怎么计算？第30年之后的回报率是多少？", "pages": [9, 16]}
+{"id": "cash-value-en", "lang": "en", "q": "What is the difference between account value and cash value?", "pages": [10]}
+{"id": "cash-value-hant", "lang": "zh-Hant", "q": "現金價值是怎樣計算的？", "pages": [10]}
+{"id": "periodic-withdrawal-en", "lang": "en", "q": "What is the minimum monthly amount for automatic periodic withdrawals?", "pages": [12]}
+{"id": "periodic-withdrawal-hans", "lang": "zh-Hans", "q": "定期提款权益要保单生效多少年才能用？", "pages": [12]}
+{"id": "withdrawal-fee-en", "lang": "en", "q": "Is there a fee each time I withdraw cash?", "pages": [12, 18]}
+{"id": "withdrawal-fee-hant", "lang": "zh-Hant", "q": "每次提取現金價值要收多少手續費？", "pages": [12, 18]}
+{"id": "unemployment-en", "lang": "en", "q": "What happens if I lose my job?", "pages": [11, 16]}
+{"id": "unemployment-hans", "lang": "zh-Hans", "q": "如果我被裁员了，保费可以暂停吗？", "pages": [11, 16]}
+{"id": "terminal-def-en", "lang": "en", "q": "How does the policy define terminal illness?", "pages": [12]}
+{"id": "terminal-excl-hant", "lang": "zh-Hant", "q": "末期病症保障有哪些不保事項？", "pages": [14]}
+{"id": "waiver-en", "lang": "en", "q": "Who pays my premiums if I become disabled?", "pages": [11]}
+{"id": "premium-charge-hans", "lang": "zh-Hans", "q": "保费行政费用第一到第三年收多少？", "pages": [17]}
+{"id": "coi-en", "lang": "en", "q": "How is the cost of insurance charged?", "pages": [17]}
+{"id": "surrender-charge-hant", "lang": "zh-Hant", "q": "退保費用適用多少年？", "pages": [18]}
+{"id": "issue-age-en", "lang": "en", "q": "What is the maximum age to apply for this plan?", "pages": [18]}
+{"id": "issue-age-hans", "lang": "zh-Hans", "q": "特级递增寿险保障的投保年龄是多少？", "pages": [18]}
+{"id": "min-si-en", "lang": "en", "q": "What is the minimum sum insured for a 50-year-old on FP180?", "pages": [17]}
+{"id": "min-si-hant", "lang": "zh-Hant", "q": "最低保障額是多少？", "pages": [17]}
+{"id": "cooling-off-en", "lang": "en", "q": "Can I get my money back if I change my mind after buying?", "pages": [15]}
+{"id": "cooling-off-hans", "lang": "zh-Hans", "q": "冷静期有多少天？", "pages": [15]}
+{"id": "suicide-hant", "lang": "zh-Hant", "q": "受保人一年內自殺會怎樣賠償？", "pages": [14]}
+{"id": "grace-en", "lang": "en", "q": "How long is the grace period if the cash value can't cover the monthly charges?", "pages": [14]}
+{"id": "currency-hans", "lang": "zh-Hans", "q": "香港保单可以用什么货币？", "pages": [16]}
+{"id": "payment-mode-en", "lang": "en", "q": "Can I pay premiums monthly?", "pages": [16]}
+{"id": "disclosure-hant", "lang": "zh-Hant", "q": "投保時要如實披露甚麼資料？不披露有甚麼後果？", "pages": [15]}
+{"id": "deferred-en", "lang": "en", "q": "How long can the insurer delay paying my surrender value?", "pages": [15]}
+{"id": "assets-hans", "lang": "zh-Hans", "q": "保险公司的目标资产组合是怎样的？债券占多少？", "pages": [13]}
+{"id": "spread-en", "lang": "en", "q": "How does the insurer decide the crediting interest rate?", "pages": [13]}
+{"id": "ul-vs-traditional-hant", "lang": "zh-Hant", "q": "萬用壽險和傳統壽險有甚麼分別？", "pages": [4, 3]}
+{"id": "maturity-en", "lang": "en", "q": "What do I receive at maturity?", "pages": [14]}
+{"id": "lifo-hans", "lang": "zh-Hans", "q": "减少基本保障额时会先扣除哪一层？", "pages": [12]}

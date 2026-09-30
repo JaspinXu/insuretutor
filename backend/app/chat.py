@@ -36,7 +36,9 @@ from app.store import Store
 
 log = logging.getLogger(__name__)
 
-RELEVANCE_MIN_BM25 = 3.0
+# Backstop only: scope is decided by the router (LLM or domain vocabulary). Set well below the
+# weakest in-scope eval question (best BM25 ≈ 4) so real questions are never refused here.
+RELEVANCE_MIN_BM25 = 2.0
 _CITE_RE = re.compile(r"\[\d+\]")
 
 Event = tuple[str, dict]
@@ -88,7 +90,7 @@ class ChatService:
             f"- {d.display_title('en')} / {d.display_title('zh-Hant')} — {d.insurer}; {d.product_type}; {d.doc_type}"
             for d in self.documents
         )
-        self.router = Router(llm, described)
+        self.router = Router(llm, described, retriever.glossary)
 
     @property
     def mode(self) -> str:

@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     embedding_api_key: str | None = None  # defaults to OPENAI_API_KEY
     embedding_base_url: str | None = None  # defaults to OPENAI_BASE_URL
     top_k: int = Field(6, ge=1, le=20)
+    # RRF vote weight of dense lists relative to BM25 (tuned on eval/datasets/retrieval.jsonl)
+    dense_rrf_weight: float = Field(0.5, ge=0.0, le=2.0)
 
     # --- Paths -------------------------------------------------------------
     data_dir: Path = REPO_ROOT / "data"

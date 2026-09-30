@@ -6,18 +6,21 @@ question, and write search queries in the documents' own terminology in both
 English and Traditional Chinese (closing the cross-lingual gap for BM25).
 
 Without an LLM (offline mode) — or if that call fails — a keyword heuristic
-takes over; scope is then decided by the retrieval relevance gate.
+takes over: greetings and advice requests by pattern, scope by insurance
+vocabulary (plus the retrieval relevance gate downstream).
 """
 
 from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 from dataclasses import dataclass, field
 
 from app.lang import to_simplified
 from app.llm.base import LLMError, LLMProvider, Usage
 from app.prompts import ROUTER_SCHEMA, ROUTER_SYSTEM, router_user_message
+from app.rag.glossary import Glossary
 
 log = logging.getLogger(__name__)
 
@@ -27,6 +30,20 @@ ANSWERABLE = {"plan_question", "insurance_concept", "advice_request"}
 _GREETING_RE = re.compile(
     r"^\s*(hi|hello|hey|thanks|thank you|thx|good (morning|afternoon|evening)|你好|您好|嗨|哈啰|早晨|早安|谢谢|多谢|"
     r"what can you do|who are you|你是谁|你能做什么|你可以做什么|你会什么)[\s!！。.?？,，~]*$",
+    re.I,
+)
+# Without an LLM, a question is in scope only if it uses insurance vocabulary
+# (or a glossary lay term). Matched on the NFKC-folded, Simplified probe.
+_DOMAIN_RE = re.compile(
+    r"\b(insur\w*|polic(?:y|ies)|plans?|premiums?|benefits?|cover(?:age|ed)?|sum (?:insured|assured)|claims?|"
+    r"surrender\w*|withdraw\w*|cash value|account value|interest|bonus\w*|rates?|returns?|fees?|charges?|costs?|"
+    r"guarantee\w*|ages?|death|die|dies|illness|disab\w*|unemploy\w*|jobs?|cooling|cancel\w*|refunds?|exclu\w*|"
+    r"riders?|supplementary|currenc\w*|pay\w*|lapse\w*|grace|maturity|matures?|beneficiar\w*|underwrit\w*|"
+    r"disclos\w*|medical|smok\w*|universal life|flexi\w*|prime saver|yf life|savings?|invest\w*|retire\w*|"
+    r"education|protection|insured|owner)\b|"
+    r"保险|保单|保费|保障|保额|计划|寿险|理赔|赔偿|赔|退保|提取|提款|现金价值|账户价值|利息|派息|回报|收益|利率|费用|"
+    r"收费|保证|年龄|身故|死|疾病|病|失业|冷静期|取消|不保|附加|货币|缴费|缴付|期满|宽限|投保|受保|披露|吸烟|万用|"
+    r"万通|储蓄|供款|退休|教育",
     re.I,
 )
 _ADVICE_RE = re.compile(
@@ -47,10 +64,13 @@ class Route:
     usage: Usage = field(default_factory=Usage)
 
 
-def heuristic_route(message: str, history: list[dict]) -> Route:
-    probe = to_simplified(message.lower())
+def heuristic_route(message: str, history: list[dict], glossary: Glossary | None = None) -> Route:
+    probe = to_simplified(unicodedata.normalize("NFKC", message).lower())
     if _GREETING_RE.match(probe):
         return Route("greeting", message, reason="greeting pattern")
+    is_follow_up = bool(history) and len(message) < 40
+    if not (_DOMAIN_RE.search(probe) or (glossary and glossary.expand(message)) or is_follow_up):
+        return Route("out_of_scope", message, reason="no insurance vocabulary")
     intent = "advice_request" if _ADVICE_RE.search(probe) else "plan_question"
     queries = [message]
     # Short follow-ups ("and the Incremental one?") borrow the previous question for retrieval.
@@ -61,13 +81,14 @@ def heuristic_route(message: str, history: list[dict]) -> Route:
 
 
 class Router:
-    def __init__(self, llm: LLMProvider | None, documents: str) -> None:
+    def __init__(self, llm: LLMProvider | None, documents: str, glossary: Glossary | None = None) -> None:
         self.llm = llm
         self.system = ROUTER_SYSTEM.format(documents=documents)
+        self.glossary = glossary
 
     async def route(self, message: str, history: list[dict]) -> Route:
         if self.llm is None:
-            return heuristic_route(message, history)
+            return heuristic_route(message, history, self.glossary)
         try:
             data, usage = await self.llm.complete_json(
                 self.system,
@@ -90,6 +111,6 @@ class Router:
             )
         except (LLMError, ValueError, TypeError, KeyError) as exc:
             log.warning("LLM router failed (%s); using heuristic routing", exc)
-            route = heuristic_route(message, history)
+            route = heuristic_route(message, history, self.glossary)
             route.reason = f"heuristic fallback: {type(exc).__name__}"
             return route

@@ -42,6 +42,8 @@ log = logging.getLogger(__name__)
 
 RRF_K = 60
 WINDOW_CHARS = 220
+EXPANSION_WEIGHT = 0.5  # glossary terms nudge the ranking; the user's own words dominate
+
 _NOTE_RE = re.compile(r"\[Note \d+\]")
 _MD_RE = re.compile(r"^#+\s*|\|", re.M)
 
@@ -85,9 +87,13 @@ class Retriever:
         window_vectors: np.ndarray | None = None,
         window_owner: np.ndarray | None = None,
         glossary: Glossary | None = None,
+        dense_weight: float = 0.5,
     ) -> None:
         self.corpus = corpus
         self.glossary = glossary or Glossary([])
+        # Vote weight of each dense ranked list in RRF (BM25 lists weigh 1.0). Below 1 means
+        # exact product vocabulary leads and embeddings break ties / rescue paraphrases.
+        self.dense_weight = dense_weight
         self.chunks = corpus.chunks
         titles = {d.id: d.display_title("en") for d in corpus.documents}
         self.bm25 = BM25([tokenize(search_text(c, titles.get(c.doc_id, ""))) for c in self.chunks])
@@ -112,7 +118,14 @@ class Retriever:
             except Exception as exc:  # noqa: BLE001
                 log.warning("Could not embed corpus with %s (%s); using BM25 only", embedder.name, exc)
                 embedder = None
-        r = cls(corpus, embedder, vectors, owner, Glossary.load(settings.data_dir / "glossary.yaml"))
+        r = cls(
+            corpus,
+            embedder,
+            vectors,
+            owner,
+            Glossary.load(settings.data_dir / "glossary.yaml"),
+            dense_weight=settings.dense_rrf_weight,
+        )
         log.info(
             "Retriever ready: %d chunks, dense=%s (%.1fs)",
             len(corpus.chunks),
@@ -125,14 +138,22 @@ class Retriever:
     def expansions(self, query: str) -> list[str]:
         return self.glossary.expand(query)
 
+    def _weighted_query(self, query: str, expand: bool) -> dict[str, float]:
+        weights = dict.fromkeys(tokenize(query), 1.0)
+        if expand:
+            for term in tokenize(" ".join(self.expansions(query))):
+                weights.setdefault(term, EXPANSION_WEIGHT)
+        return weights
+
     def search(self, queries: list[str], k: int = 6, expand: bool = True) -> list[Hit]:
         """Search several phrasings of one question; every ranked list votes in RRF.
 
-        Glossary terms are appended to the lexical query they were triggered by
-        (classic query expansion) rather than searched as separate lists, so an
-        expansion boosts the right passages without outvoting the question."""
+        Glossary terms are added to the keyword query they were triggered by, at
+        reduced weight (classic weighted query expansion) rather than searched
+        as separate lists, so an expansion boosts the right passages without
+        outvoting the question itself."""
         queries = [q for q in dict.fromkeys(q.strip() for q in queries) if q]
-        lexical = [" ".join([q, *self.expansions(q)]) if expand else q for q in queries]
+        lexical = [self._weighted_query(q, expand) for q in queries]
         n = len(self.chunks)
         if not queries or n == 0:
             return []
@@ -141,7 +162,7 @@ class Retriever:
         best_dense = np.full(n, -1.0, dtype=np.float32) if self.dense_enabled else None
 
         for q in lexical:
-            s = self.bm25.scores(tokenize(q))
+            s = self.bm25.scores(q)
             best_bm25 = np.maximum(best_bm25, s)
             ranked = [i for i in np.argsort(-s) if s[i] > 0]
             for rank, i in enumerate(ranked):
@@ -155,7 +176,7 @@ class Retriever:
                 np.maximum.at(per_chunk, self.window_owner, row)
                 best_dense = np.maximum(best_dense, per_chunk)
                 for rank, i in enumerate(np.argsort(-per_chunk)):
-                    fused[i] += 1.0 / (RRF_K + rank + 1)
+                    fused[i] += self.dense_weight / (RRF_K + rank + 1)
 
         order = np.argsort(-fused)[:k]
         return [

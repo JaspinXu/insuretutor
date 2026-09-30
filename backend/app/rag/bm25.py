@@ -20,15 +20,18 @@ class BM25:
         n = len(docs)
         self.idf = {t: math.log(1 + (n - f + 0.5) / (f + 0.5)) for t, f in df.items()}
 
-    def scores(self, query: list[str]) -> np.ndarray:
+    def scores(self, query: list[str] | dict[str, float]) -> np.ndarray:
+        """Score every document. `query` is a token list, or {token: weight}
+        for weighted queries (e.g. down-weighted expansion terms)."""
+        weights = query if isinstance(query, dict) else dict.fromkeys(query, 1.0)
         out = np.zeros(len(self.tfs), dtype=np.float32)
         if not self.tfs:
             return out
         norm = self.k1 * (1 - self.b + self.b * self.lengths / (self.avg_len or 1.0))
-        for term in set(query):
+        for term, weight in weights.items():
             idf = self.idf.get(term)
             if idf is None:
                 continue
             tf = np.array([d.get(term, 0) for d in self.tfs], dtype=np.float32)
-            out += idf * tf * (self.k1 + 1) / (tf + norm)
+            out += weight * idf * tf * (self.k1 + 1) / (tf + norm)
         return out
