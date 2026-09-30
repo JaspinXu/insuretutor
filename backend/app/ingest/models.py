@@ -1,0 +1,85 @@
+from __future__ import annotations
+
+import re
+from dataclasses import asdict, dataclass, field
+from typing import Literal
+
+BBox = tuple[float, float, float, float]
+
+_CJK_RE = re.compile(r"[㐀-鿿]")
+
+
+def _has_cjk(text: str) -> bool:
+    return bool(_CJK_RE.search(text))
+
+
+@dataclass
+class Block:
+    """A paragraph-level unit of a page, in reading order."""
+
+    text: str
+    kind: Literal["title", "heading", "text"] = "text"
+    size: float = 0.0
+    bbox: BBox | None = None
+
+
+@dataclass
+class Page:
+    doc_id: str
+    number: int  # 1-based PDF page number (what the viewer shows)
+    blocks: list[Block]
+    source: Literal["extracted", "override"] = "extracted"
+
+    @property
+    def title(self) -> str:
+        """Page title: the first title block (or, failing that, a large heading),
+        plus its translation if the next one is in the other language — brochure
+        titles come in Chinese/English pairs."""
+        titles = [b.text for b in self.blocks if b.kind == "title"]
+        if not titles:
+            titles = [b.text for b in self.blocks if b.kind == "heading" and b.size >= 11]
+        if not titles:
+            return ""
+        if len(titles) > 1 and _has_cjk(titles[0]) != _has_cjk(titles[1]):
+            return f"{titles[0]} {titles[1]}"
+        return titles[0]
+
+
+@dataclass
+class DocumentInfo:
+    id: str
+    file: str
+    title: dict[str, str]
+    insurer: str = ""
+    product_type: str = ""
+    doc_type: str = ""
+    version: str = ""
+    languages: list[str] = field(default_factory=list)
+    text_fixes: dict[str, str] = field(default_factory=dict)
+    page_count: int = 0
+
+    def display_title(self, lang: str = "en") -> str:
+        return self.title.get(lang) or self.title.get("en") or self.id
+
+
+@dataclass
+class Chunk:
+    """A retrievable passage. `text` is exactly what the LLM and user see."""
+
+    id: str
+    doc_id: str
+    page: int
+    section: str
+    text: str
+    lang: Literal["en", "zh-Hant", "mixed"]
+    source: Literal["extracted", "override"]
+    bboxes: list[BBox] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> Chunk:
+        d = dict(d)
+        d["bboxes"] = [tuple(b) for b in d.get("bboxes", [])]
+        return cls(**d)

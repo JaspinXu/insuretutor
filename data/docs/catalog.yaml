@@ -1,0 +1,21 @@
+# Document catalog: every PDF the tutor may answer from.
+# To add a plan, drop the PDF in this folder and add an entry below; the index
+# is rebuilt automatically on the next start (its cache key includes the files).
+documents:
+  - id: flexi-ulife-prime-saver
+    file: FLEXI-ULife_Prime_Saver.pdf
+    title:
+      en: FLEXI-ULife Prime Saver
+      zh-Hant: 首選靈活萬用壽險計劃
+      zh-Hans: 首选灵活万用寿险计划
+    insurer: YF Life Insurance International Ltd. (萬通保險國際有限公司)
+    product_type: Universal Life Insurance (Non-Linked)
+    doc_type: Product brochure
+    version: PSP-137-V3-0925B
+    languages: [zh-Hant, en]
+    # Extraction errata: the brochure's embedded CJK font maps the glyph 總
+    # ("total") to the wrong code point (籍 or U+FFFD). Verified against the
+    # rendered pages: every occurrence of 籍 in this file should read 總.
+    text_fixes:
+      "籍": "總"
+      "�": "總"
