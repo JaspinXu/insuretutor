@@ -5,6 +5,10 @@
     python -m eval.run answers               # fact recall + citation accuracy (needs an LLM)
     python -m eval.run all
 
+    # Regression gate (CI): exit 1 if the production configuration drops below thresholds
+    python -m eval.run retrieval --min-mrr 0.8 --min-hit 0.95
+    python -m eval.run guardrails --min-guardrails 1.0
+
 Uses the same settings as the app (.env), so the numbers describe the
 configuration you are running. Reports are written to eval/reports/.
 """
@@ -33,7 +37,11 @@ REPORTS = HERE / "reports"
 
 
 def load(name: str) -> list[dict]:
-    return [json.loads(line) for line in (DATASETS / f"{name}.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line)
+        for line in (DATASETS / f"{name}.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
 
 
 def pct(x: float) -> str:
@@ -69,10 +77,18 @@ def eval_retrieval(retriever: Retriever, k: int, expand: bool) -> dict:
     for r in rows:
         by_lang[r["lang"]].append(r)
     return {
-        "config": {"k": k, "glossary_expansion": expand, "dense": retriever.embedder.name if retriever.embedder else None},
+        "config": {
+            "k": k,
+            "glossary_expansion": expand,
+            "dense": retriever.embedder.name if retriever.embedder else None,
+        },
         "overall": summary(rows),
         "by_lang": {lang: summary(items) for lang, items in sorted(by_lang.items())},
-        "misses": [{"id": r["id"], "q": r["q"], "expected": r["pages"], "got": r["retrieved_pages"]} for r in rows if not r["rank"]],
+        "misses": [
+            {"id": r["id"], "q": r["q"], "expected": r["pages"], "got": r["retrieved_pages"]}
+            for r in rows
+            if not r["rank"]
+        ],
     }
 
 
@@ -132,9 +148,13 @@ async def eval_guardrails(service: ChatService) -> dict:
             }
         )
     groups = {
-        "attacks blocked (injection / fraud / self-harm)": [r for r in rows if r["expect"] in ("prompt_attack", "fraud", "self_harm")],
+        "attacks blocked (injection / fraud / self-harm)": [
+            r for r in rows if r["expect"] in ("prompt_attack", "fraud", "self_harm")
+        ],
         "out-of-scope declined": [r for r in rows if r["expect"] == "out_of_scope"],
-        "benign answered (no false positive)": [r for r in rows if r["expect"] in ("answer", "advice_request") or r["expect"].startswith("redact:")],
+        "benign answered (no false positive)": [
+            r for r in rows if r["expect"] in ("answer", "advice_request") or r["expect"].startswith("redact:")
+        ],
         "PII redacted": [r for r in rows if r["expect"].startswith("redact:")],
         "advice requests recognised": [r for r in rows if r["expect"] == "advice_request"],
     }
@@ -148,14 +168,24 @@ async def eval_guardrails(service: ChatService) -> dict:
 
 def print_guardrails(res: dict) -> None:
     print(f"mode: {res['mode']}\n")
-    rows = [[k, f"{g['passed']}/{g['n']}", pct(g["passed"] / g["n"]) if g["n"] else "-"] for k, g in res["groups"].items()]
-    rows.append(["overall", f"{res['overall']['passed']}/{res['overall']['n']}", pct(res["overall"]["passed"] / res["overall"]["n"])])
+    rows = [
+        [k, f"{g['passed']}/{g['n']}", pct(g["passed"] / g["n"]) if g["n"] else "-"] for k, g in res["groups"].items()
+    ]
+    rows.append(
+        [
+            "overall",
+            f"{res['overall']['passed']}/{res['overall']['n']}",
+            pct(res["overall"]["passed"] / res["overall"]["n"]),
+        ]
+    )
     print(table(["check", "passed", "rate"], rows))
     failed = [r for r in res["rows"] if not r["passed"]]
     if failed:
         print("\nFailures:")
         for r in failed:
-            print(f"  - {r['id']} expected {r['expect']}, got verdict={r['verdict']} intent={r['intent']}: {r['text'][:70]}")
+            print(
+                f"  - {r['id']} expected {r['expect']}, got verdict={r['verdict']} intent={r['intent']}: {r['text'][:70]}"
+            )
 
 
 async def eval_answers(service: ChatService) -> dict:
@@ -170,7 +200,7 @@ async def eval_answers(service: ChatService) -> dict:
             {
                 "id": ex["id"],
                 "fact_recall": sum(found) / len(found),
-                "missing": [p for p, ok in zip(ex["must"], found) if not ok],
+                "missing": [p for p, ok in zip(ex["must"], found, strict=True) if not ok],
                 "citation_hit": bool(set(cited_pages) & set(ex["pages"])),
                 "cited_pages": cited_pages,
                 "flags": final.get("flags", []),
@@ -202,8 +232,26 @@ def print_answers(res: dict) -> None:
     print(f"mode: {res['mode']}  model: {res['model']}\n")
     print(
         table(
-            ["n", "fact recall", "all facts", "citation hit", "unverified-number flags", "median latency", "mean tokens"],
-            [[s["n"], pct(s["fact_recall"]), pct(s["all_facts"]), pct(s["citation_hit"]), pct(s["flagged_unverified_numbers"]), f"{s['median_seconds']:.1f}s", f"{s['mean_tokens']:.0f}"]],
+            [
+                "n",
+                "fact recall",
+                "all facts",
+                "citation hit",
+                "unverified-number flags",
+                "median latency",
+                "mean tokens",
+            ],
+            [
+                [
+                    s["n"],
+                    pct(s["fact_recall"]),
+                    pct(s["all_facts"]),
+                    pct(s["citation_hit"]),
+                    pct(s["flagged_unverified_numbers"]),
+                    f"{s['median_seconds']:.1f}s",
+                    f"{s['mean_tokens']:.0f}",
+                ]
+            ],
         )
     )
     for r in res["rows"]:
@@ -216,7 +264,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("suite", choices=["retrieval", "guardrails", "answers", "all"])
     parser.add_argument("--k", type=int, default=None, help="top-k for retrieval (default: TOP_K setting)")
+    parser.add_argument("--min-mrr", type=float, help="fail if retrieval MRR (with glossary) is below this")
+    parser.add_argument("--min-hit", type=float, help="fail if retrieval Hit@k (with glossary) is below this")
+    parser.add_argument("--min-guardrails", type=float, help="fail if the guardrail pass rate is below this")
     args = parser.parse_args()
+    failures: list[str] = []
 
     settings = get_settings()
     retriever = Retriever.from_settings(settings)
@@ -228,6 +280,11 @@ def main() -> None:
         results = [eval_retrieval(retriever, k, expand=False), eval_retrieval(retriever, k, expand=True)]
         print_retrieval(results)
         report["retrieval"] = results
+        prod = results[1]["overall"]  # the configuration the app runs: with glossary expansion
+        if args.min_mrr is not None and prod["mrr"] < args.min_mrr:
+            failures.append(f"retrieval MRR {prod['mrr']:.3f} < {args.min_mrr}")
+        if args.min_hit is not None and prod[f"hit@{k}"] < args.min_hit:
+            failures.append(f"retrieval Hit@{k} {prod[f'hit@{k}']:.3f} < {args.min_hit}")
 
     llm = create_llm(settings)
     service = ChatService(settings, retriever, llm, Store(":memory:"))
@@ -236,6 +293,9 @@ def main() -> None:
         res = asyncio.run(eval_guardrails(service))
         print_guardrails(res)
         report["guardrails"] = res
+        rate = res["overall"]["passed"] / res["overall"]["n"]
+        if args.min_guardrails is not None and rate < args.min_guardrails:
+            failures.append(f"guardrail pass rate {rate:.3f} < {args.min_guardrails}")
     if args.suite in ("answers", "all"):
         print("\n## Answers\n")
         if llm is None:
@@ -249,6 +309,9 @@ def main() -> None:
     out = REPORTS / f"{args.suite}-{time.strftime('%Y%m%d-%H%M%S')}.json"
     out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\nReport: {out.relative_to(Path.cwd()) if out.is_relative_to(Path.cwd()) else out}", file=sys.stderr)
+    if failures:
+        print("\nREGRESSION: " + "; ".join(failures), file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

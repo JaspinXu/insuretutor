@@ -207,6 +207,9 @@ def test_page_image_with_highlight(make_client):
     with make_client(None) as client:
         r = client.get("/api/documents/flexi-ulife-prime-saver/pages/11.png?chunk=flexi-ulife-prime-saver:p11:0")
         assert r.status_code == 200 and r.content[:8] == b"\x89PNG\r\n\x1a\n"
+        thumb = client.get("/api/documents/flexi-ulife-prime-saver/pages/11.png?size=thumb")
+        assert thumb.status_code == 200 and len(thumb.content) < len(r.content)
         assert client.get("/api/documents/flexi-ulife-prime-saver/pages/99.png").status_code == 404
         cfg = client.get("/api/config").json()
     assert cfg["documents"][0]["pages"] == 20 and set(cfg["suggestions"]) == {"en", "zh-Hans", "zh-Hant"}
+    assert cfg["suggestions"]["en"][0] == {"topic": "death", "question": "What are the death benefit options?"}

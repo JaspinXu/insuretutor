@@ -20,9 +20,7 @@ class GlossaryEntry:
 class Glossary:
     def __init__(self, entries: list[GlossaryEntry]) -> None:
         self.entries = entries
-        self._patterns = [
-            (e, [self._pattern(a) for a in e.aliases]) for e in entries
-        ]
+        self._patterns = [(e, [self._pattern(a) for a in e.aliases]) for e in entries]
 
     @staticmethod
     def _pattern(alias: str) -> re.Pattern[str]:
@@ -37,9 +35,7 @@ class Glossary:
         if not path.is_file():
             return cls([])
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        return cls(
-            [GlossaryEntry(e["terms"], tuple(e.get("aliases", []))) for e in data.get("entries", [])]
-        )
+        return cls([GlossaryEntry(e["terms"], tuple(e.get("aliases", []))) for e in data.get("entries", [])])
 
     def expand(self, query: str) -> list[str]:
         """Canonical term strings for every entry whose alias occurs in the query."""

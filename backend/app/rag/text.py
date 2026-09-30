@@ -22,7 +22,7 @@ STOPWORDS = frozenset(
     """a an and are as at be been but by can could did do does for from had has have how i if in
     into is it its me my of on or our should so than that the their them then there these they this
     to was we were what when where which who why will with would you your about any all also am
-    i'm i've please tell know want need much many get give let us after before over under up out""".split()
+    i'm i've please tell know want need much many get give let us after before over under up out""".split()  # noqa: SIM905
 )
 
 

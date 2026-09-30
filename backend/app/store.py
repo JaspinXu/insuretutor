@@ -74,9 +74,7 @@ class Store:
         return cid
 
     def get_conversation(self, conversation_id: str, client_id: str) -> dict | None:
-        rows = self._exec(
-            "SELECT * FROM conversations WHERE id = ? AND client_id = ?", (conversation_id, client_id)
-        )
+        rows = self._exec("SELECT * FROM conversations WHERE id = ? AND client_id = ?", (conversation_id, client_id))
         return dict(rows[0]) if rows else None
 
     def list_conversations(self, client_id: str, limit: int = 50) -> list[dict]:

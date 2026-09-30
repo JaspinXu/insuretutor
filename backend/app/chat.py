@@ -29,7 +29,7 @@ from app.guardrails.messages import message
 from app.guardrails.output import check_output
 from app.guardrails.router import ANSWERABLE, Route, Router
 from app.lang import Lang, convert_script, detect_language, is_cjk_char
-from app.llm.base import LLMError, LLMProvider, LLMRefusal, Usage
+from app.llm.base import LLMError, LLMProvider, LLMRefusal
 from app.prompts import answer_system, answer_user_message
 from app.rag.retriever import Hit, Retriever
 from app.rag.text import tokenize
@@ -114,8 +114,10 @@ class ChatService:
         return self.llm.provider if self.llm else "offline"
 
     def doc_names(self, lang: Lang) -> str:
-        return "、".join(d.display_title(lang) for d in self.documents) if lang != "en" else ", ".join(
-            d.display_title(lang) for d in self.documents
+        return (
+            "、".join(d.display_title(lang) for d in self.documents)
+            if lang != "en"
+            else ", ".join(d.display_title(lang) for d in self.documents)
         )
 
     # -- helpers -------------------------------------------------------------------

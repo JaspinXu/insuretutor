@@ -101,7 +101,7 @@ MESSAGES: dict[str, dict[str, str]] = {
             "I couldn't find this in the plan documents I have, so I won't guess. For details not "
             "covered in the brochure, please check the policy document or ask the insurer or a "
             "licensed insurance adviser. You could also rephrase your question using terms from the "
-            "brochure (e.g. \"Account Value\", \"Cash Value\", \"surrender charge\")."
+            'brochure (e.g. "Account Value", "Cash Value", "surrender charge").'
         ),
         "zh-Hans": (
             "我在已收录的计划文件中找不到相关内容，所以不会猜测答案。小册子未涵盖的细节，请参阅保单文件，"

@@ -16,7 +16,7 @@ so the script is guaranteed, not just requested in the prompt.
 from __future__ import annotations
 
 import re
-from functools import lru_cache
+from functools import cache
 from typing import Literal
 
 from opencc import OpenCC
@@ -34,7 +34,7 @@ LANG_NAMES = {
 }
 
 
-@lru_cache(maxsize=None)
+@cache
 def _converter(config: str) -> OpenCC:
     return OpenCC(config)
 
@@ -55,8 +55,8 @@ def is_cjk_char(ch: str) -> bool:
 def chinese_variant(text: str) -> Lang | None:
     """Return zh-Hans / zh-Hant if the text is clearly one script, else None."""
     simp, trad = to_simplified(text), to_traditional(text)
-    traditional_only = sum(1 for a, b in zip(text, simp) if a != b)
-    simplified_only = sum(1 for a, b in zip(text, trad) if a != b)
+    traditional_only = sum(1 for a, b in zip(text, simp, strict=False) if a != b)
+    simplified_only = sum(1 for a, b in zip(text, trad, strict=False) if a != b)
     if traditional_only > simplified_only:
         return "zh-Hant"
     if simplified_only > traditional_only:

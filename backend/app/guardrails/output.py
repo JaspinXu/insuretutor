@@ -32,7 +32,20 @@ _EN_NUMBER_WORDS = {
     "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20, "thirty": 30,
     "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90, "hundred": 100,
 }  # fmt: skip
-_ZH_DIGITS = {"零": 0, "一": 1, "二": 2, "兩": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
+_ZH_DIGITS = {
+    "零": 0,
+    "一": 1,
+    "二": 2,
+    "兩": 2,
+    "两": 2,
+    "三": 3,
+    "四": 4,
+    "五": 5,
+    "六": 6,
+    "七": 7,
+    "八": 8,
+    "九": 9,
+}
 _ZH_NUMBER_RE = re.compile(r"[零一二兩两三四五六七八九十]+")
 
 MIN_CHECKED_INTEGER = 10  # small counts ("2 times", "3 years") are too ambiguous to check

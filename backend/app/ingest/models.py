@@ -56,6 +56,8 @@ class DocumentInfo:
     version: str = ""
     languages: list[str] = field(default_factory=list)
     text_fixes: dict[str, str] = field(default_factory=dict)
+    # Cover / marketing-summary / company pages: still searchable, ranked lower.
+    low_priority_pages: list[int] = field(default_factory=list)
     page_count: int = 0
 
     def display_title(self, lang: str = "en") -> str:

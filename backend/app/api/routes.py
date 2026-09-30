@@ -21,32 +21,35 @@ from app.store import Store
 log = logging.getLogger(__name__)
 router = APIRouter()
 
+# Starter questions for the welcome screen: (topic key for the UI icon, question).
 SUGGESTIONS = {
     "en": [
-        "What are the death benefit options?",
-        "How does the Guaranteed Insurability Option work, and what are its limits?",
-        "What fees and charges does this plan have?",
-        "What happens if I lose my job?",
-        "Is the 4% crediting interest rate guaranteed?",
-        "How does the cooling-off period work?",
+        ("death", "What are the death benefit options?"),
+        ("gio", "How does the Guaranteed Insurability Option work, and what are its limits?"),
+        ("fees", "What fees and charges does this plan have?"),
+        ("job", "What happens if I lose my job?"),
+        ("rates", "Is the 4% crediting interest rate guaranteed?"),
+        ("cooling", "How does the cooling-off period work?"),
     ],
     "zh-Hans": [
-        "身故保障有哪几种选择？",
-        "保证可保权益怎么运作？有什么上限？",
-        "这个计划有哪些费用？",
-        "如果我失业了会怎样？",
-        "4%的派息率是保证的吗？",
-        "冷静期是怎样的？",
+        ("death", "身故保障有哪几种选择？"),
+        ("gio", "保证可保权益怎么运作？有什么上限？"),
+        ("fees", "这个计划有哪些费用？"),
+        ("job", "如果我失业了会怎样？"),
+        ("rates", "4%的派息率是保证的吗？"),
+        ("cooling", "冷静期是怎样的？"),
     ],
     "zh-Hant": [
-        "身故保障有哪幾種選擇？",
-        "保證可保權益怎樣運作？有甚麼上限？",
-        "這個計劃有哪些費用？",
-        "如果我失業了會怎樣？",
-        "4%的派息率是保證的嗎？",
-        "冷靜期是怎樣的？",
+        ("death", "身故保障有哪幾種選擇？"),
+        ("gio", "保證可保權益怎樣運作？有甚麼上限？"),
+        ("fees", "這個計劃有哪些費用？"),
+        ("job", "如果我失業了會怎樣？"),
+        ("rates", "4%的派息率是保證的嗎？"),
+        ("cooling", "冷靜期是怎樣的？"),
     ],
 }
+
+PAGE_DPI = {"full": 110, "thumb": 40}
 
 _CLIENT_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 
@@ -126,7 +129,9 @@ def config(request: Request, chat: ChatService = Depends(get_chat)) -> dict:
         "model": chat.llm.model if chat.llm else None,
         "dense_retrieval": chat.retriever.dense_enabled,
         "max_input_chars": request.app.state.settings.max_input_chars,
-        "suggestions": SUGGESTIONS,
+        "suggestions": {
+            lang: [{"topic": topic, "question": q} for topic, q in items] for lang, items in SUGGESTIONS.items()
+        },
         "documents": [
             {
                 "id": d.id,
@@ -201,21 +206,28 @@ def document_file(doc_id: str, request: Request, chat: ChatService = Depends(get
     return FileResponse(path, media_type="application/pdf", filename=doc.file)
 
 
-def _render_page(pdf_path: Path, page_no: int, rects: list[tuple], out: Path) -> None:
+def _render_page(pdf_path: Path, page_no: int, rects: list[tuple], dpi: int, out: Path) -> None:
     with pymupdf.open(pdf_path) as pdf:
         if pdf.needs_pass:
             pdf.authenticate("")
         page = pdf[page_no - 1]
         for r in rects:
-            page.draw_rect(pymupdf.Rect(*r), color=(0.95, 0.6, 0.0), fill=(1.0, 0.85, 0.2), fill_opacity=0.28, width=0.8)
-        pix = page.get_pixmap(dpi=110)
+            page.draw_rect(
+                pymupdf.Rect(*r), color=(0.95, 0.6, 0.0), fill=(1.0, 0.85, 0.2), fill_opacity=0.28, width=0.8
+            )
+        pix = page.get_pixmap(dpi=dpi)
         out.parent.mkdir(parents=True, exist_ok=True)
         pix.save(out)
 
 
 @router.get("/documents/{doc_id}/pages/{page_no}.png")
 async def page_image(
-    doc_id: str, page_no: int, request: Request, chunk: str | None = None, chat: ChatService = Depends(get_chat)
+    doc_id: str,
+    page_no: int,
+    request: Request,
+    chunk: str | None = None,
+    size: Literal["full", "thumb"] = "full",
+    chat: ChatService = Depends(get_chat),
 ) -> FileResponse:
     corpus = chat.retriever.corpus
     doc = corpus.document(doc_id)
@@ -227,8 +239,8 @@ async def page_image(
         if c and c.doc_id == doc_id and c.page == page_no:
             rects = list(c.bboxes)
     settings = request.app.state.settings
-    key = hashlib.sha1(json.dumps([doc_id, page_no, rects]).encode()).hexdigest()[:16]
-    out = settings.var_dir / "pages" / f"{doc_id}-{page_no:02d}-{key}.png"
+    key = hashlib.sha1(json.dumps([doc_id, page_no, rects, size]).encode()).hexdigest()[:16]
+    out = settings.var_dir / "pages" / f"{doc_id}-{page_no:02d}-{size}-{key}.png"
     if not out.exists():
-        await run_in_threadpool(_render_page, settings.docs_dir / doc.file, page_no, rects, out)
+        await run_in_threadpool(_render_page, settings.docs_dir / doc.file, page_no, rects, PAGE_DPI[size], out)
     return FileResponse(out, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})

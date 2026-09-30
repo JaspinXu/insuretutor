@@ -148,7 +148,12 @@ def test_answer_script_is_forced():
 
 @pytest.mark.parametrize(
     "text",
-    ["What's the weather in Singapore?", "Write a Python function to sort a list", "幫我寫一首詩", "What is the capital of France?"],
+    [
+        "What's the weather in Singapore?",
+        "Write a Python function to sort a list",
+        "幫我寫一首詩",
+        "What is the capital of France?",
+    ],
 )
 def test_heuristic_router_declines_non_insurance_questions(text):
     assert heuristic_route(text, []).intent == "out_of_scope"
@@ -164,6 +169,11 @@ def test_heuristic_router():
     assert heuristic_route("hello!", []).intent == "greeting"
     assert heuristic_route("Should I buy this plan?", []).intent == "advice_request"
     assert heuristic_route("這個計劃值不值得買？", []).intent == "advice_request"
-    assert heuristic_route("值不值得買？", [{"role": "user", "content": "什麼是保證可保權益？"}]).intent == "advice_request"
-    r = heuristic_route("and the Incremental one?", [{"role": "user", "content": "What is the death benefit of Level Benefit?"}])
+    assert (
+        heuristic_route("值不值得買？", [{"role": "user", "content": "什麼是保證可保權益？"}]).intent
+        == "advice_request"
+    )
+    r = heuristic_route(
+        "and the Incremental one?", [{"role": "user", "content": "What is the death benefit of Level Benefit?"}]
+    )
     assert r.intent == "plan_question" and len(r.search_queries) == 2

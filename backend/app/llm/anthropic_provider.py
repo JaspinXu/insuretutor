@@ -80,9 +80,7 @@ class AnthropicProvider(LLMProvider):
         try:
             if self._use_fallback(model):
                 try:
-                    resp = await self.client.beta.messages.create(
-                        **params, betas=[FALLBACK_BETA], fallbacks="default"
-                    )
+                    resp = await self.client.beta.messages.create(**params, betas=[FALLBACK_BETA], fallbacks="default")
                 except anthropic.BadRequestError as exc:
                     self._disable_fallback(exc)
                     resp = await self.client.messages.create(**params)
@@ -113,9 +111,7 @@ class AnthropicProvider(LLMProvider):
             while True:
                 try:
                     if use_fallback:
-                        manager = self.client.beta.messages.stream(
-                            **params, betas=[FALLBACK_BETA], fallbacks="default"
-                        )
+                        manager = self.client.beta.messages.stream(**params, betas=[FALLBACK_BETA], fallbacks="default")
                     else:
                         manager = self.client.messages.stream(**params)
                     async with manager as stream:

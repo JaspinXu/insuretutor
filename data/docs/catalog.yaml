@@ -13,6 +13,9 @@ documents:
     doc_type: Product brochure
     version: PSP-137-V3-0925B
     languages: [zh-Hant, en]
+    # Cover, marketing overview, disclaimer and company pages: kept searchable but
+    # ranked below the product-detail pages that state the actual terms.
+    low_priority_pages: [1, 2, 5, 19, 20]
     # Extraction errata: the brochure's embedded CJK font maps the glyph 總
     # ("total") to the wrong code point (籍 or U+FFFD). Verified against the
     # rendered pages: every occurrence of 籍 in this file should read 總.

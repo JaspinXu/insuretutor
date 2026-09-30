@@ -14,9 +14,7 @@ def test_join_lines_is_cjk_aware():
 
 
 def test_parse_override_front_matter_and_headings():
-    page, meta = parse_override(
-        "---\nreason: table\n---\n# Title\n\n## Head\nline 1\nline 2\n\npara 2\n", "doc", 3
-    )
+    page, meta = parse_override("---\nreason: table\n---\n# Title\n\n## Head\nline 1\nline 2\n\npara 2\n", "doc", 3)
     assert meta["reason"] == "table"
     assert [(b.kind, b.text) for b in page.blocks] == [
         ("title", "Title"),

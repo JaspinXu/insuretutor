@@ -18,7 +18,11 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     r = Retriever.from_settings(get_settings())
     hits = r.search(["Guaranteed Insurability Option 保證可保權益"], k=1)
-    logging.info("Warm-up search OK: top hit page %s (%s)", hits[0].chunk.page if hits else "-", r.embedder.name if r.embedder else "BM25 only")
+    logging.info(
+        "Warm-up search OK: top hit page %s (%s)",
+        hits[0].chunk.page if hits else "-",
+        r.embedder.name if r.embedder else "BM25 only",
+    )
 
 
 if __name__ == "__main__":

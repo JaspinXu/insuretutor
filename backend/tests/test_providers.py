@@ -52,13 +52,17 @@ class FakeServer:
 
     async def _record(self, request: Request) -> dict:
         body = await request.json()
-        self.requests.append({"path": request.url.path, "query": str(request.url.query), "headers": dict(request.headers), "body": body})
+        self.requests.append(
+            {"path": request.url.path, "query": str(request.url.query), "headers": dict(request.headers), "body": body}
+        )
         return body
 
     def _bad(self, body):
         hit = self.reject & set(body)
         if hit:
-            return JSONResponse({"error": {"type": "invalid_request_error", "message": f"unsupported: {hit}"}}, status_code=400)
+            return JSONResponse(
+                {"error": {"type": "invalid_request_error", "message": f"unsupported: {hit}"}}, status_code=400
+            )
         return None
 
     async def openai(self, request: Request):
@@ -66,11 +70,22 @@ class FakeServer:
         if bad := self._bad(body):
             return bad
         if not body.get("stream"):
-            return JSONResponse({
-                "id": "c1", "object": "chat.completion", "created": 1, "model": body["model"],
-                "choices": [{"index": 0, "finish_reason": "stop", "message": {"role": "assistant", "content": json.dumps(ROUTE_JSON)}}],
-                "usage": {"prompt_tokens": 11, "completion_tokens": 7, "total_tokens": 18},
-            })
+            return JSONResponse(
+                {
+                    "id": "c1",
+                    "object": "chat.completion",
+                    "created": 1,
+                    "model": body["model"],
+                    "choices": [
+                        {
+                            "index": 0,
+                            "finish_reason": "stop",
+                            "message": {"role": "assistant", "content": json.dumps(ROUTE_JSON)},
+                        }
+                    ],
+                    "usage": {"prompt_tokens": 11, "completion_tokens": 7, "total_tokens": 18},
+                }
+            )
 
         def gen():
             base = {"id": "c1", "object": "chat.completion.chunk", "created": 1, "model": body["model"]}
@@ -89,21 +104,38 @@ class FakeServer:
             return bad
         msg = {"id": "msg_1", "type": "message", "role": "assistant", "model": body["model"], "stop_sequence": None}
         if not body.get("stream"):
-            return JSONResponse({
-                **msg, "content": [{"type": "text", "text": json.dumps(ROUTE_JSON)}], "stop_reason": self.stop_reason,
-                "usage": {"input_tokens": 21, "output_tokens": 8},
-            })
+            return JSONResponse(
+                {
+                    **msg,
+                    "content": [{"type": "text", "text": json.dumps(ROUTE_JSON)}],
+                    "stop_reason": self.stop_reason,
+                    "usage": {"input_tokens": 21, "output_tokens": 8},
+                }
+            )
 
         def ev(name, data):
             return f"event: {name}\ndata: {json.dumps({'type': name, **data})}\n\n"
 
         def gen():
-            yield ev("message_start", {"message": {**msg, "content": [], "stop_reason": None, "usage": {"input_tokens": 60, "output_tokens": 1}}})
+            yield ev(
+                "message_start",
+                {
+                    "message": {
+                        **msg,
+                        "content": [],
+                        "stop_reason": None,
+                        "usage": {"input_tokens": 60, "output_tokens": 1},
+                    }
+                },
+            )
             yield ev("content_block_start", {"index": 0, "content_block": {"type": "text", "text": ""}})
             for piece in ["Up to ", "365 days", " [1]."]:
                 yield ev("content_block_delta", {"index": 0, "delta": {"type": "text_delta", "text": piece}})
             yield ev("content_block_stop", {"index": 0})
-            yield ev("message_delta", {"delta": {"stop_reason": self.stop_reason, "stop_sequence": None}, "usage": {"output_tokens": 12}})
+            yield ev(
+                "message_delta",
+                {"delta": {"stop_reason": self.stop_reason, "stop_sequence": None}, "usage": {"output_tokens": 12}},
+            )
             yield ev("message_stop", {})
 
         return StreamingResponse(gen(), media_type="text/event-stream")
@@ -126,7 +158,9 @@ async def collect(provider):
 
 
 def openai_provider(server):
-    return OpenAIProvider(Settings(openai_api_key="test", openai_base_url=f"http://127.0.0.1:{server.port}/v1", llm_model="m"))
+    return OpenAIProvider(
+        Settings(openai_api_key="test", openai_base_url=f"http://127.0.0.1:{server.port}/v1", llm_model="m")
+    )
 
 
 def anthropic_provider(server, monkeypatch, **kw):

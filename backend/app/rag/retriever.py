@@ -43,6 +43,7 @@ log = logging.getLogger(__name__)
 RRF_K = 60
 WINDOW_CHARS = 220
 EXPANSION_WEIGHT = 0.5  # glossary terms nudge the ranking; the user's own words dominate
+LOW_PRIORITY_FACTOR = 0.8  # fused-score multiplier for cover / marketing-summary pages
 
 _NOTE_RE = re.compile(r"\[Note \d+\]")
 _MD_RE = re.compile(r"^#+\s*|\|", re.M)
@@ -97,6 +98,10 @@ class Retriever:
         self.chunks = corpus.chunks
         titles = {d.id: d.display_title("en") for d in corpus.documents}
         self.bm25 = BM25([tokenize(search_text(c, titles.get(c.doc_id, ""))) for c in self.chunks])
+        low = {(d.id, p) for d in corpus.documents for p in d.low_priority_pages}
+        self.prior = np.array(
+            [LOW_PRIORITY_FACTOR if (c.doc_id, c.page) in low else 1.0 for c in self.chunks], dtype=np.float64
+        )
         self.embedder = embedder if window_vectors is not None else None
         self.window_vectors = window_vectors
         self.window_owner = window_owner
@@ -178,6 +183,7 @@ class Retriever:
                 for rank, i in enumerate(np.argsort(-per_chunk)):
                     fused[i] += self.dense_weight / (RRF_K + rank + 1)
 
+        fused *= self.prior
         order = np.argsort(-fused)[:k]
         return [
             Hit(
