@@ -1,0 +1,42 @@
+# Lay-language -> brochure-terminology query expansion.
+#
+# Users ask "what if I lose my job?"; the brochure says "Unemployment
+# Protection ... made redundant". When an alias appears in a question, the
+# canonical terms are searched as an extra query (in both languages). Matching
+# is case-insensitive and script-insensitive (Simplified/Traditional).
+# Keep entries grounded in wording that actually appears in the documents.
+entries:
+  - terms: Unemployment Protection 失業保障 redundant 裁員 特惠寬限期
+    aliases: [lose my job, lost my job, laid off, layoff, fired, jobless, unemployed, unemployment, 失業, 失业, 裁員, 裁员, 被解僱, 被解雇, 沒工作, 没工作, 丟了工作, 丢了工作]
+  - terms: Death Benefit 身故保障
+    aliases: [die, dies, died, death, pass away, passed away, 去世, 過世, 过世, 死亡, 身故, 賠多少, 赔多少]
+  - terms: Cooling-off Period Right of Cancellation 冷靜期 取消保單
+    aliases: [cooling off, cooling-off, change my mind, regret, cancel the policy, cancel my policy, 冷靜期, 冷静期, 猶豫期, 犹豫期, 後悔, 后悔, 取消保單, 取消保单]
+  - terms: Surrender Early Surrender Surrender Charge 退保 提早退保 退保費用
+    aliases: [surrender, cash out, quit the policy, terminate early, 退保, 解約, 解约, 提早終止, 提早终止]
+  - terms: Cash Value Withdrawal automatic periodic withdrawal option 提取現金價值 定期提款權益
+    aliases: [withdraw, withdrawal, take money out, take out money, 提款, 提取, 取錢, 取钱, 提現, 提现]
+  - terms: Skip Premium Payments 暫停繳付保費
+    aliases: [skip premium, skip payment, stop paying, can't pay, cannot pay, premium holiday, 暫停繳費, 暂停缴费, 停止繳費, 停止缴费, 不交保費, 不交保费, 停繳, 停缴]
+  - terms: Terminal Illness Benefit 末期病症保障
+    aliases: [terminal illness, terminally ill, 末期, 絕症, 绝症]
+  - terms: Guaranteed Insurability Option 保證可保權益
+    aliases: [get married, marriage, married, new baby, birth of my child, adopt, adoption, without medical, 結婚, 结婚, 生孩子, 生小孩, 子女出世, 領養, 领养]
+  - terms: Policy Enhancement Option 保單增值權益
+    aliases: [automatic increase, increase automatically, 自動增加, 自动增加]
+  - terms: Minimum Sum Insured Maximum Sum Insured 最低保障額 最高保障額
+    aliases: [minimum coverage, maximum coverage, sum assured, 最低保額, 最低保额, 最高保額, 最高保额, 保額, 保额]
+  - terms: Issue Age At Last Birthday 投保年齡
+    aliases: [how old, age limit, too old, eligible age, 年齡限制, 年龄限制, 幾歲, 几岁, 多大]
+  - terms: Premium Expense Charge Cost of Insurance Administrative Charge 保費行政費用 保險成本 一般行政費用
+    aliases: [fee, fees, charge, charges, cost, costs, 費用, 费用, 收費, 收费, 手續費, 手续费]
+  - terms: crediting interest rate Extra Bonus guaranteed interest 派息率 額外回報 利息保證
+    aliases: [return, returns, yield, interest rate, 回報, 回报, 收益, 利率, 利息]
+  - terms: Key Exclusions Terminal Illness exclusions 主要不保事項
+    aliases: [not covered, won't pay, will not pay, exclusion, 不保, 不賠, 不赔, 除外]
+  - terms: Duty of Disclosure 提供資料責任
+    aliases: [disclose, disclosure, pre-existing, medical history, 披露, 如實告知, 如实告知, 隱瞞, 隐瞒, 病史]
+  - terms: Account Value Cash Value 賬戶價值 現金價值
+    aliases: [account value, cash value, 賬戶價值, 账户价值, 帳戶價值, 現金價值, 现金价值]
+  - terms: Policy Currency 保單貨幣單位 Payment Mode 繳費方式
+    aliases: [currency, usd, hkd, pay monthly, payment frequency, 貨幣, 货币, 月繳, 月缴, 繳費方式, 缴费方式]
