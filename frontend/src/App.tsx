@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Languages, Menu } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api, fromStored, streamChat } from "./api";
 import Composer from "./components/Composer";
 import MessageView from "./components/MessageView";
@@ -30,7 +31,8 @@ export default function App() {
   const [openSource, setOpenSource] = useState<Source | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
+  const stickToBottom = useRef(true);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -50,9 +52,16 @@ export default function App() {
     refreshConversations();
   }, [refreshConversations]);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  // Follow the stream only while the reader is at the bottom of the thread.
+  useLayoutEffect(() => {
+    const el = threadRef.current;
+    if (el && stickToBottom.current) el.scrollTop = el.scrollHeight;
   }, [messages]);
+
+  const onScroll = () => {
+    const el = threadRef.current;
+    if (el) stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  };
 
   const updateLast = (fn: (m: ChatMessage) => ChatMessage) =>
     setMessages((prev) => (prev.length ? [...prev.slice(0, -1), fn(prev[prev.length - 1])] : prev));
@@ -61,6 +70,7 @@ export default function App() {
     if (busy || !text.trim()) return;
     const controller = new AbortController();
     abortRef.current = controller;
+    stickToBottom.current = true;
     setBusy(true);
     setMessages((prev) => [
       ...prev,
@@ -102,11 +112,8 @@ export default function App() {
         controller.signal,
       );
     } catch (err) {
-      if ((err as Error).name !== "AbortError") {
-        updateLast((m) => ({ ...m, pending: false, error: (err as Error).message }));
-      } else {
-        updateLast((m) => ({ ...m, pending: false }));
-      }
+      const aborted = (err as Error).name === "AbortError";
+      updateLast((m) => ({ ...m, pending: false, error: aborted ? undefined : (err as Error).message }));
     } finally {
       setBusy(false);
       abortRef.current = null;
@@ -129,6 +136,7 @@ export default function App() {
     setSidebarOpen(false);
     setOpenSource(null);
     const data = await api.conversation(id);
+    stickToBottom.current = true;
     setConversationId(id);
     setMessages(fromStored(data.messages));
   };
@@ -144,16 +152,14 @@ export default function App() {
     setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, rating } : m)));
   };
 
-  const providerBadge = !config
-    ? ""
-    : config.provider === "offline"
-      ? t(lang, "offlineBadge")
-      : `${config.provider} · ${config.model ?? ""}`;
+  const title = conversations.find((c) => c.id === conversationId)?.title ?? t(lang, "newConversation");
+  const empty = messages.length === 0;
 
   return (
-    <div className="app">
+    <div className={`app ${openSource ? "with-panel" : ""}`}>
       <Sidebar
         lang={lang}
+        config={config}
         open={sidebarOpen}
         conversations={conversations}
         activeId={conversationId}
@@ -166,38 +172,31 @@ export default function App() {
       <main className="main">
         <header className="topbar">
           <button className="icon-btn menu-btn" onClick={() => setSidebarOpen(true)} aria-label={t(lang, "menu")}>
-            ☰
+            <Menu size={20} />
           </button>
-          <div className="brand">
-            <span className="brand-mark" aria-hidden>
-              ✓
-            </span>
-            <div>
-              <div className="brand-name">InsureTutor</div>
-              <div className="brand-sub">{t(lang, "subtitle")}</div>
-            </div>
-          </div>
-          <div className="topbar-right">
-            {providerBadge && <span className={`badge ${config?.provider === "offline" ? "warn" : ""}`}>{providerBadge}</span>}
-            <div className="lang-switch" role="group" aria-label="Language">
-              {(Object.keys(LANG_LABELS) as Lang[]).map((l) => (
-                <button key={l} className={l === lang ? "active" : ""} onClick={() => setLang(l)} aria-pressed={l === lang}>
-                  {LANG_LABELS[l]}
-                </button>
-              ))}
-            </div>
+          <h1 className="topbar-title" title={title}>
+            {empty ? "" : title}
+          </h1>
+          <div className="lang-switch" role="group" aria-label={t(lang, "language")}>
+            <Languages size={16} className="lang-icon" aria-hidden />
+            {(Object.keys(LANG_LABELS) as Lang[]).map((l) => (
+              <button key={l} className={l === lang ? "active" : ""} onClick={() => setLang(l)} aria-pressed={l === lang}>
+                {LANG_LABELS[l]}
+              </button>
+            ))}
           </div>
         </header>
 
-        <section className="thread" aria-live="polite">
-          {messages.length === 0 ? (
-            <Welcome lang={lang} config={config} onAsk={send} />
-          ) : (
-            messages.map((m) => (
-              <MessageView key={m.id} message={m} lang={lang} onOpenSource={setOpenSource} onRate={rate} />
-            ))
-          )}
-          <div ref={bottomRef} />
+        <section className="thread" ref={threadRef} onScroll={onScroll} aria-live="polite">
+          <div className="thread-inner">
+            {empty ? (
+              <Welcome lang={lang} config={config} onAsk={send} />
+            ) : (
+              messages.map((m) => (
+                <MessageView key={m.id} message={m} lang={lang} onOpenSource={setOpenSource} onRate={rate} />
+              ))
+            )}
+          </div>
         </section>
 
         <footer className="footer">
@@ -208,9 +207,10 @@ export default function App() {
 
       {openSource && (
         <SourcePanel
+          key={openSource.chunk_id}
           source={openSource}
           lang={lang}
-          overridePages={config?.documents.find((d) => d.id === openSource.doc_id)?.override_pages ?? []}
+          document={config?.documents.find((d) => d.id === openSource.doc_id) ?? null}
           onClose={() => setOpenSource(null)}
         />
       )}

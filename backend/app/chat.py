@@ -379,7 +379,11 @@ class ChatService:
         )
 
     def _extractive(self, hits: list[Hit], lang: Lang, intro: str, query: str) -> str:
+        # Quote passages the reader can read: skip chunks written only in the other language
+        # (citation numbers keep pointing at the original source positions).
+        readable = {"en": ("en", "mixed")}.get(lang, ("zh-Hant", "mixed"))
+        numbered = [(n, h) for n, h in enumerate(hits, 1) if h.chunk.lang in readable] or list(enumerate(hits, 1))
         lines = [message(intro, lang), ""]
-        for n, h in enumerate(hits[:3], 1):
+        for n, h in numbered[:3]:
             lines.append(f"- **{h.chunk.section}** — {excerpt(h.chunk.text, lang, query)} [{n}]")
         return "\n".join(lines)

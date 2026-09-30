@@ -89,11 +89,16 @@ export interface DocumentInfo {
   override_pages: number[];
 }
 
+export interface Suggestion {
+  topic: string;
+  question: string;
+}
+
 export interface AppConfig {
   provider: string;
   model: string | null;
   dense_retrieval: boolean;
   max_input_chars: number;
-  suggestions: Record<Lang, string[]>;
+  suggestions: Record<Lang, Suggestion[]>;
   documents: DocumentInfo[];
 }

@@ -41,8 +41,17 @@ export const api = {
     }),
 };
 
-export function pageImageUrl(s: Source): string {
-  return `/api/documents/${encodeURIComponent(s.doc_id)}/pages/${s.page}.png?chunk=${encodeURIComponent(s.chunk_id)}`;
+/** Rendered PDF page; pass a chunk id to highlight that passage. */
+export function pageUrl(docId: string, page: number, opts: { chunkId?: string; thumb?: boolean } = {}): string {
+  const params = new URLSearchParams();
+  if (opts.chunkId) params.set("chunk", opts.chunkId);
+  if (opts.thumb) params.set("size", "thumb");
+  const qs = params.toString();
+  return `/api/documents/${encodeURIComponent(docId)}/pages/${page}.png${qs ? `?${qs}` : ""}`;
+}
+
+export function pageImageUrl(s: Source, thumb = false): string {
+  return pageUrl(s.doc_id, s.page, { chunkId: s.chunk_id, thumb });
 }
 
 export function pdfUrl(docId: string, page: number): string {

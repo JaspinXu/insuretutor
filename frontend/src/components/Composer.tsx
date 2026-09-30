@@ -1,3 +1,4 @@
+import { ArrowUp, Square } from "lucide-react";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { t } from "../i18n";
 import type { Lang } from "../types";
@@ -42,19 +43,26 @@ export default function Composer({ lang, busy, maxChars, onSend, onStop }: Props
         onCompositionEnd={() => (composing.current = false)}
         aria-label={t(lang, "placeholder")}
       />
-      <div className="composer-side">
+      <div className="composer-row">
+        <span className="composer-hint">{t(lang, "hint")}</span>
         {text.length > maxChars * 0.8 && (
           <span className={`counter ${over ? "danger" : ""}`}>
             {text.length}/{maxChars}
           </span>
         )}
         {busy ? (
-          <button className="primary-btn" onClick={onStop}>
-            {t(lang, "stop")}
+          <button className="send-btn stop" onClick={onStop} aria-label={t(lang, "stop")} title={t(lang, "stop")}>
+            <Square size={14} fill="currentColor" />
           </button>
         ) : (
-          <button className="primary-btn" onClick={submit} disabled={!text.trim() || over}>
-            {t(lang, "send")}
+          <button
+            className="send-btn"
+            onClick={submit}
+            disabled={!text.trim() || over}
+            aria-label={t(lang, "send")}
+            title={t(lang, "send")}
+          >
+            <ArrowUp size={18} strokeWidth={2.4} />
           </button>
         )}
       </div>
