@@ -21,7 +21,9 @@ from dataclasses import dataclass, field
 from app.lang import Lang, convert_script
 
 _CITE_RE = re.compile(r"\[(\d{1,2}(?:\s*[,，、]\s*\d{1,2})*)\]")
-_NUMBER_RE = re.compile(r"(?<![\w.])\d{1,3}(?:,\d{3})+(?:\.\d+)?|(?<![\w.,])\d+(?:\.\d+)?")
+# Look-behinds exclude only digits/separators: numbers glued to letters or CJK
+# ("MOP40,000", "長達365日") must still be extracted (CJK counts as \w in Python).
+_NUMBER_RE = re.compile(r"(?<![0-9.])\d{1,3}(?:,\d{3})+(?:\.\d+)?|(?<![0-9.,])\d+(?:\.\d+)?")
 _ORDINAL_LINE_RE = re.compile(r"^\s*\d+[.)、]\s", re.M)
 
 _EN_NUMBER_WORDS = {

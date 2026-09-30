@@ -46,6 +46,11 @@ _DOMAIN_RE = re.compile(
     r"万通|储蓄|供款|退休|教育",
     re.I,
 )
+_REFERENTIAL_RE = re.compile(
+    r"\b(it|its|that|this|these|those|they|them|one|ones|and|also|what about|how about|same)\b|"
+    r"它|这个|那个|这些|那些|呢|还有|另外|同样",
+    re.I,
+)
 _ADVICE_RE = re.compile(
     r"\b(should i|shall i|is it worth|worth it|recommend|better than|good investment|suitable for me|"
     r"right for me|best (option|choice) for me|which (option|one) should)\b|"
@@ -68,7 +73,8 @@ def heuristic_route(message: str, history: list[dict], glossary: Glossary | None
     probe = to_simplified(unicodedata.normalize("NFKC", message).lower())
     if _GREETING_RE.match(probe):
         return Route("greeting", message, reason="greeting pattern")
-    is_follow_up = bool(history) and len(message) < 40
+    # A short follow-up ("and the Incremental one?", "值不值得買？") inherits the conversation's scope.
+    is_follow_up = bool(history) and len(message) < 40 and bool(_REFERENTIAL_RE.search(probe) or _ADVICE_RE.search(probe))
     if not (_DOMAIN_RE.search(probe) or (glossary and glossary.expand(message)) or is_follow_up):
         return Route("out_of_scope", message, reason="no insurance vocabulary")
     intent = "advice_request" if _ADVICE_RE.search(probe) else "plan_question"
