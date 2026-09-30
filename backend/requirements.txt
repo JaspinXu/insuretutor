@@ -1,0 +1,20 @@
+# Runtime dependencies (pinned for reproducible Docker builds)
+fastapi==0.142.2
+uvicorn[standard]==0.54.0
+pydantic==2.13.5
+pydantic-settings==2.15.0
+PyYAML==6.0.3
+numpy==2.4.6
+
+# Document processing
+pymupdf==1.28.2
+
+# Chinese script conversion (Simplified <-> Traditional)
+opencc-python-reimplemented==0.1.7
+
+# Local multilingual embeddings (ONNX runtime, no torch)
+fastembed==0.8.1
+
+# LLM providers
+anthropic==1.9.0
+openai==3.22.1
