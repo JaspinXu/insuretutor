@@ -79,7 +79,8 @@ def _rx(*patterns: str) -> re.Pattern[str]:
 
 INJECTION = _rx(
     r"\b(ignore|disregard|forget|override|bypass)\b.{0,30}\b(previous|prior|above|earlier|preceding|all|your|system)\b.{0,20}\b(instructions?|prompts?|rules|directions|guidelines|guardrails|constraints)",
-    r"\b(reveal|show|print|repeat|display|output|leak|dump|tell me|what(?:'s| is| are))\b.{0,25}\b(system prompt|initial prompt|hidden prompt|developer (?:message|prompt)|your (?:instructions|rules|prompt|guidelines)|the instructions above)",
+    r"\b(reveal\w*|show\w*|print\w*|repeat\w*|display\w*|output\w*|leak\w*|dump\w*|translat\w*|tell me|what(?:'s| is| are))\b.{0,25}\b(system prompt|initial prompt|hidden prompt|(?:hidden )?developer (?:message|prompt)|your (?:instructions|rules|prompt|guidelines)|the instructions above)",
+    r"^\s*(?:system|developer|assistant)\s*:|\bnew (?:system )?instructions\s*[:：-]",
     r"\bsystem prompt\b",
     r"\b(you are now|you're now|from now on,? you (?:are|will)|pretend (?:to be|you are)|roleplay as|role-play as|act as (?:an? )?(?:ai|assistant|chatbot|dan|unfiltered|unrestricted|different|another))\b",
     r"\b(developer mode|jailbreak|jailbroken|do anything now|dan mode)\b",
@@ -94,7 +95,7 @@ FRAUD = _rx(
     r"\b(hide|conceal|not (?:tell|disclose|mention|declare)|without (?:telling|disclosing|declaring)|lie (?:about|on)|fake|forge|falsify|fabricate|cover up|misrepresent)\b.{0,40}\b(condition|illness|disease|diagnos\w*|smok\w*|medical|health|history|application|claim|death|document|records?|age|income|cancer)",
     r"\b(fake|stage|faking|staging)\b.{0,10}\b(my |a |the )?(death|illness|disability|unemployment|redundancy|accident)",
     r"\binsurance fraud\b|\bcheat (?:the|an) insurer\b|\bscam (?:the |an )?insur",
-    r"(隐瞒|瞒报|谎报|伪造|编造|篡改|虚报|假报|不告诉|不申报|不如实).{0,12}(病|病史|吸烟|抽烟|健康|体检|诊断|年龄|收入|死亡|失业|理赔|申请|资料|癌)",
+    r"(隐瞒|瞒报|谎报|伪造|编造|篡改|虚报|假报|假装|装作|不告诉|不申报|不如实).{0,12}(病|病史|吸烟|抽烟|健康|体检|诊断|年龄|收入|死亡|失业|理赔|申请|资料|癌)",
     r"骗保|假死|保险诈骗|诈骗保险|骗取保险",
 )
 

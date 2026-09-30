@@ -1,0 +1,15 @@
+{"id": "gio", "q": "How does the Guaranteed Insurability Option work and what are its limits?", "must": ["25%", "50,000|50000", "(twice|two times|2 times)", "51"], "pages": [6, 12, 16]}
+{"id": "gio-hans", "q": "保证可保权益最多可以行使几次？每次上限是多少？", "must": ["(两次|2次|二次)", "25%", "50,000|50000"], "pages": [12, 16]}
+{"id": "guaranteed", "q": "Is the 4% crediting interest rate guaranteed?", "must": ["(not guaranteed|non-guaranteed|isn't guaranteed|is not guaranteed)", "2.5%", "15"], "pages": [8, 16]}
+{"id": "death-level", "q": "What does the Level Benefit option pay on death?", "must": ["(higher|greater)", "Account Value", "Basic Sum Insured"], "pages": [7]}
+{"id": "cash-value", "q": "什麼是現金價值？和賬戶價值有什麼分別？", "must": ["退保費用"], "pages": [10]}
+{"id": "unemployment", "q": "What happens if I lose my job?", "must": ["365"], "pages": [11, 16]}
+{"id": "cooling", "q": "冷静期有多少天？可以拿回什么？", "must": ["21"], "pages": [15]}
+{"id": "withdraw-fee", "q": "How much is the fee for each cash withdrawal?", "must": ["25"], "pages": [12, 18]}
+{"id": "min-si", "q": "What is the minimum sum insured for a 50-year-old on FP180/280?", "must": ["8,000|8000"], "pages": [17]}
+{"id": "issue-age", "q": "What is the issue age range, and does it differ for Increasing Benefit Plus?", "must": ["75", "55"], "pages": [18]}
+{"id": "surrender", "q": "When does the surrender charge apply?", "must": ["14"], "pages": [18]}
+{"id": "suicide", "q": "受保人投保一年內自殺，保險公司會賠多少？", "must": ["賬戶價值|账户价值", "保險成本|保险成本"], "pages": [14]}
+{"id": "not-in-docs", "q": "What is the exact cost of insurance rate for a 40-year-old non-smoker?", "must": ["(not|doesn't|does not|no).{0,40}(provide|include|specify|state|list|contain|given|available)"], "pages": [17]}
+{"id": "discrepancy", "q": "What is the minimum amount for an increase or decrease of the sum insured in HK dollars?", "must": ["40,000|40000", "400,000|400000"], "pages": [17]}
+{"id": "advice", "q": "Should I choose Level Benefit or Increasing Benefit?", "must": ["(adviser|advisor|consult)"], "pages": [7]}
