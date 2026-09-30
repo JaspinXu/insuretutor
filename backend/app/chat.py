@@ -32,6 +32,7 @@ from app.lang import Lang, convert_script, detect_language, is_cjk_char
 from app.llm.base import LLMError, LLMProvider, LLMRefusal, Usage
 from app.prompts import answer_system, answer_user_message
 from app.rag.retriever import Hit, Retriever
+from app.rag.text import tokenize
 from app.store import Store
 
 log = logging.getLogger(__name__)
@@ -40,6 +41,7 @@ log = logging.getLogger(__name__)
 # weakest in-scope eval question (best BM25 ≈ 4) so real questions are never refused here.
 RELEVANCE_MIN_BM25 = 2.0
 _CITE_RE = re.compile(r"\[\d+\]")
+_NOTE_RE = re.compile(r"\s*\[Note \d+\]")
 
 Event = tuple[str, dict]
 
@@ -61,21 +63,36 @@ def _cjk_ratio(text: str) -> float:
     return sum(1 for c in letters if is_cjk_char(c)) / len(letters) if letters else 0.0
 
 
-def excerpt(text: str, lang: Lang, max_chars: int = 320) -> str:
-    """Lines of a (bilingual) chunk in the reader's language, for offline answers."""
+def excerpt(text: str, lang: Lang, query: str = "", max_chars: int = 300) -> str:
+    """Best-matching lines of a (bilingual) chunk in the reader's language — the
+    offline mode's stand-in for a generated answer."""
     raw = re.sub(r"(?<=[。！？」）])\s*(?=[A-Za-z“\"])", "\n", text)  # split "中文。 English" lines
-    lines = [ln.lstrip("#|- ").replace("|", " ").strip() for ln in raw.splitlines()]
-    lines = [ln for ln in lines if ln and not set(ln) <= set("-: ")]
+    lines = []
+    for ln in raw.splitlines():
+        if ln.lstrip().startswith("#"):
+            continue  # headings are already shown as the section label
+        ln = _NOTE_RE.sub("", ln).lstrip("|- ").replace("|", " ").strip()
+        if ln and not set(ln) <= set("-: "):
+            lines.append(ln)
     want_zh = lang != "en"
     picked = [ln for ln in lines if (_cjk_ratio(ln) > 0.3) == want_zh] or lines
-    out = ""
-    for ln in picked:
-        if len(out) + len(ln) > max_chars:
-            if not out:
-                out = ln[:max_chars] + "…"
+    q = set(tokenize(query))
+    overlap = [len(q & set(tokenize(ln))) for ln in picked]
+    best = max(overlap, default=0)
+    if best:
+        # Only lines that match the question about as well as the best one.
+        order = sorted((i for i in range(len(picked)) if overlap[i] * 2 >= best), key=lambda i: -overlap[i])
+    else:
+        order = list(range(len(picked)))
+    chosen: list[int] = []
+    used = 0
+    for i in order:
+        if chosen and used + len(picked[i]) > max_chars:
             break
-        out = f"{out} {ln}".strip()
-    return out
+        chosen.append(i)
+        used += len(picked[i])
+    out = " ".join(picked[i] for i in sorted(chosen))
+    return out if len(out) <= max_chars + 40 else out[:max_chars].rstrip() + "…"
 
 
 class ChatService:
@@ -296,7 +313,7 @@ class ChatService:
         system = answer_system(lang, self.canary)
         mode = self.mode
         if self.llm is None:
-            answer = self._extractive(hits, lang, "offline_intro")
+            answer = self._extractive(hits, lang, "offline_intro", route.standalone_question or check.text)
         else:
             messages = [
                 *history,
@@ -323,7 +340,7 @@ class ChatService:
             except LLMError as exc:
                 log.error("LLM generation failed: %s", exc)
                 mode = "fallback"
-                answer = self._extractive(hits, lang, "llm_unavailable")
+                answer = self._extractive(hits, lang, "llm_unavailable", route.standalone_question or check.text)
         timings["generate_ms"] = _ms(t0)
 
         # 5. Output guard -----------------------------------------------------------------
@@ -359,8 +376,8 @@ class ChatService:
             metrics=metrics(route=route_info, retrieval=retrieval_info),
         )
 
-    def _extractive(self, hits: list[Hit], lang: Lang, intro: str) -> str:
+    def _extractive(self, hits: list[Hit], lang: Lang, intro: str, query: str) -> str:
         lines = [message(intro, lang), ""]
         for n, h in enumerate(hits[:3], 1):
-            lines.append(f"- **{h.chunk.section}** — {excerpt(h.chunk.text, lang)} [{n}]")
+            lines.append(f"- **{h.chunk.section}** — {excerpt(h.chunk.text, lang, query)} [{n}]")
         return "\n".join(lines)

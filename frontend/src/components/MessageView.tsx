@@ -69,8 +69,7 @@ export default function MessageView({ message: m, lang, onOpenSource, onRate }: 
             {t(lang, "guardrail")} · {t(lang, `verdict.${f.guardrail.verdict}`)}
           </Notice>
         )}
-        {f?.mode === "offline" && <Notice kind="info">{t(lang, "offline")}</Notice>}
-        {f?.mode === "fallback" && <Notice kind="warn">{t(lang, "fallback")}</Notice>}
+        {/* offline / fallback answers carry their own explanatory first line */}
 
         {m.pending && !m.content && (
           <div className="thinking">
