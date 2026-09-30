@@ -1,0 +1,22 @@
+services:
+  insuretutor:
+    build:
+      context: .
+      args:
+        EMBEDDING_MODEL: ${EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
+        HF_ENDPOINT: ${HF_ENDPOINT:-https://huggingface.co}
+    image: insuretutor:latest
+    ports:
+      - "${PORT:-8000}:8000"
+    # API keys and settings; see .env.example. Without a .env the app runs in
+    # offline (extractive) mode.
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      # SQLite conversation store, cached index and rendered page images
+      - insuretutor-var:/app/var
+    restart: unless-stopped
+
+volumes:
+  insuretutor-var:
