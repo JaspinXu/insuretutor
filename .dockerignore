@@ -6,6 +6,10 @@ var/
 **/__pycache__
 **/.pytest_cache
 **/node_modules
+**/.venv
+**/venv
+**/.ruff_cache
+**/*.py[cod]
 frontend/dist
 backend/eval/reports
 docs/
