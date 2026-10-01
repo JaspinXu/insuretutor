@@ -70,5 +70,9 @@ jobs:
             -H 'Content-Type: application/json' \
             -d '{"message":"What happens if I lose my job?"}' | tee /tmp/sse.txt
           grep -q '"cited": \[1' /tmp/sse.txt
+      - name: Eval suites run inside the image (as the non-root app user)
+        run: |
+          docker compose exec -T insuretutor python -m eval.run guardrails --min-guardrails 1.0
+          docker compose exec -T insuretutor python -m eval.run retrieval --min-mrr 0.80 --min-hit 0.95
       - if: always()
         run: docker compose logs && docker compose down

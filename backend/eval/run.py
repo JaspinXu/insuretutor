@@ -11,7 +11,8 @@
     python -m eval.run guardrails --min-guardrails 1.0
 
 Uses the same settings as the app (.env), so the numbers describe the
-configuration you are running. Reports are written to eval/reports/.
+configuration you are running. Reports are written to VAR_DIR/eval-reports/
+(var/eval-reports/ locally; the writable /app/var volume in Docker).
 """
 
 from __future__ import annotations
@@ -34,7 +35,6 @@ from app.store import Store
 
 HERE = Path(__file__).parent
 DATASETS = HERE / "datasets"
-REPORTS = HERE / "reports"
 
 
 def load(name: str) -> list[dict]:
@@ -319,16 +319,21 @@ def main() -> None:
     if args.suite in ("answers", "all"):
         print("\n## Answers\n")
         if llm is None:
-            print("Skipped: the answers suite needs an LLM (set ANTHROPIC_API_KEY or OPENAI_API_KEY).")
+            print("Skipped: the answers suite needs an LLM (set ANTHROPIC_API_KEY, OPENAI_API_KEY or SOCLAAS_API_KEY).")
         else:
             res = asyncio.run(eval_answers(service))
             print_answers(res)
             report["answers"] = res
 
-    REPORTS.mkdir(exist_ok=True)
-    out = REPORTS / f"{args.suite}-{time.strftime('%Y%m%d-%H%M%S')}.json"
-    out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"\nReport: {out.relative_to(Path.cwd()) if out.is_relative_to(Path.cwd()) else out}", file=sys.stderr)
+    # Under VAR_DIR: in the Docker image the code is read-only to the app user, /app/var is not.
+    reports = settings.var_dir / "eval-reports"
+    out = reports / f"{args.suite}-{time.strftime('%Y%m%d-%H%M%S')}.json"
+    try:
+        reports.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"\nReport: {out}", file=sys.stderr)
+    except OSError as exc:  # the scores above are the result; a report that can't be saved isn't a failure
+        print(f"\nReport not saved ({exc})", file=sys.stderr)
     if failures:
         print("\nREGRESSION: " + "; ".join(failures), file=sys.stderr)
         sys.exit(1)
