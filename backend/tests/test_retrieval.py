@@ -89,6 +89,22 @@ class BagOfWordsEmbedder(Embedder):
         return self.embed_documents(texts)
 
 
+class FailingEmbedder(BagOfWordsEmbedder):
+    def embed_queries(self, texts):
+        raise RuntimeError("429 rate limit exceeded")
+
+
+def test_query_embedding_failure_falls_back_to_bm25(corpus):
+    """A hosted embedder (EMBEDDING_BACKEND=openai) can be rate-limited at query time; the turn
+    must still be answered from keyword retrieval instead of failing with an internal error."""
+    emb = FailingEmbedder()
+    texts = [w for c in corpus.chunks for w in windows(c)]
+    owner = [i for i, c in enumerate(corpus.chunks) for _ in windows(c)]
+    r = Retriever(corpus, emb, emb.embed_documents(texts), np.array(owner))
+    hits = r.search(["cooling-off period right of cancellation"], k=3)
+    assert hits and hits[0].chunk.page == 15 and hits[0].dense is None
+
+
 def test_hybrid_search_uses_multi_vector_dense_scores(corpus):
     emb = BagOfWordsEmbedder()
     texts, owner = [], []

@@ -184,8 +184,15 @@ class Retriever:
             for rank, i in enumerate(ranked):
                 fused[i] += weight / (RRF_K + rank + 1)
 
+        qv = None
         if self.dense_enabled and best_dense is not None:
-            qv = self.embedder.embed_queries([q for q, _ in lists])  # type: ignore[union-attr]
+            try:
+                qv = self.embedder.embed_queries([q for q, _ in lists])  # type: ignore[union-attr]
+            except Exception as exc:  # noqa: BLE001 - an API embedder can be rate-limited or down
+                # Keyword retrieval alone still answers the turn; dense recovers on the next one.
+                log.warning("Query embedding failed (%s); this search is BM25-only", type(exc).__name__)
+                best_dense = None
+        if qv is not None and best_dense is not None:
             sims = qv @ self.window_vectors.T  # (lists, windows)
             for row, (_, weight) in zip(sims, lists, strict=True):
                 per_chunk = np.full(n, -1.0, dtype=np.float32)
