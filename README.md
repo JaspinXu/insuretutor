@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/FastAPI-SSE-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
   <img src="https://img.shields.io/badge/React_19-TypeScript-3178C6?logo=react&logoColor=white" alt="React 19 + TypeScript" />
   <img src="https://img.shields.io/badge/docker_compose-up-2496ED?logo=docker&logoColor=white" alt="Docker Compose" />
-  <img src="https://img.shields.io/badge/tests-176_passing-2ea44f" alt="176 tests" />
+  <img src="https://img.shields.io/badge/tests-184_passing-2ea44f" alt="184 tests" />
 </p>
 
 <p align="center">
@@ -21,7 +21,7 @@ Built for the AIDF (NUS) *AI Full Stack Engineering Intern* take-home task, usin
 
 | 💬 Chat and answer | 📄 RAG with page citations | 🛡️ Guardrails |
 |---|---|---|
-| Streaming chat with history and follow-up questions. Answers in the language **and script** of the question | Layout-aware PDF ingestion → bilingual hybrid retrieval (BM25 + embeddings, RRF) → every claim cites `[n]` → the cited page opens with the passage highlighted | 5 layers: input guard (PII, injection, fraud, self-harm), LLM router, relevance gate, grounded prompt, output checks (citations, **every figure must appear in a source**, prompt-leak canary) |
+| Streaming chat with history and follow-up questions. Answers in the language **and script** of the question | Layout-aware PDF ingestion → bilingual hybrid retrieval (BM25 + embeddings, RRF) → every claim cites `[n]` → the cited page opens with the passage highlighted | 6 layers: input guard (PII, injection, fraud, self-harm), LLM router, relevance gate, grounded prompt, output checks (citations, **every figure must appear in a source**, prompt-leak canary), and a **fact check** that removes statements their own cited pages don't support |
 
 <p align="center">
   <img src="docs/screenshots/live-answer.png" alt="A generated answer that labels the 4% rate as current assumed and not guaranteed, cites five passages, and shows page 8 with the cited passage highlighted" width="100%" />
@@ -156,13 +156,13 @@ backend/
   app/
     ingest/        pdf.py (layout-aware extraction) · overrides.py · chunker.py · pipeline.py
     rag/           text.py (bilingual tokenizer) · bm25.py · embeddings.py · retriever.py · glossary.py
-    guardrails/    input.py · router.py · output.py · messages.py (EN/简/繁 templates)
+    guardrails/    input.py · router.py · output.py · verify.py (fact check) · messages.py (EN/简/繁 templates)
     llm/           anthropic_provider.py · openai_provider.py · base.py
     chat.py        the per-turn pipeline          prompts.py   router + answer prompts
     store.py       SQLite persistence            api/routes.py  HTTP + SSE endpoints
     lang.py        language / script detection   main.py      app factory
   eval/            run.py + datasets/ (retrieval, guardrails, answers)
-  tests/           176 tests: ingestion, retrieval, guardrails, providers, end-to-end API
+  tests/           184 tests: ingestion, retrieval, guardrails, providers, end-to-end API
 frontend/          React 19 + TypeScript + Vite (chat, citations, source viewer, i18n, dark mode)
 data/
   docs/            FLEXI-ULife_Prime_Saver.pdf + catalog.yaml (metadata, font errata, page priorities)
@@ -256,6 +256,7 @@ The approach is defense in depth: cheap deterministic checks run first, the LLM 
 | **Retrieval gate** (`chat.py`) | Questions with no support in the documents | With no lexical evidence, the answer is "not in the documents" instead of a generated one |
 | **Grounded prompt** (`prompts.py`) | Hallucination, advice, indirect injection through sources | Cite-everything rules, sources fenced as data, explicit "not found" behavior, no recommendations |
 | **Output guard** (`guardrails/output.py`) | Invalid citations, **figures not in the cited sources**, system-prompt leakage, wrong script | See the numbered list below |
+| **Fact check** (`guardrails/verify.py`) | A statement whose words come from the sources but whose claim doesn't, e.g. facts from two pages joined into a rule neither states | Each cited statement is checked against **only the passages it cites**: deterministically (a figure that is in another passage but not in its own) and by an LLM judge. Unsupported statements are removed and the user is told. If the judge rejects more than half the answer, the judge is distrusted and the answer is flagged instead |
 
 The output guard works in four steps:
 
@@ -358,7 +359,8 @@ All three suites were run against a live model through the SoCLaaS gateway (answ
 |---|---|---|---|---|---|
 | First run¹ | 83.3% | 80.0% | 93.3% | 0% | 2.5 s |
 | + pooled router queries | 90.0% | 86.7% | 100% | 0% | 2.6 s |
-| + table rows, discrepancy note (now, two runs) | **100%** | **100%** | **100%** | 0% | 2.7 s |
+| + table rows, discrepancy note (two runs) | **100%** | **100%** | **100%** | 0% | 2.7 s |
+| + fact check (now, in Docker, two runs) | **100%** | **100%** | **100%** | 0% | 3.2–3.5 s |
 
 Retrieval, 45 questions, k=6. The router's rewrites differ a little from run to run, so one set of live rewrites was recorded and replayed through every configuration:
 
@@ -380,13 +382,14 @@ What the live run taught me:
 - **Tables need rows.** The minimum-sum-insured cell was a nested list. In both runs the model gave the FP80/100/130 amount for an FP180/280 question. As a table with one row per plan and age band, it answers correctly.
 - **A known inconsistency is best stated in the source.** The prompt asks the model to point out English/Chinese discrepancies, yet it quoted only one side in both runs. A transcriber's note on the page fixed it.
 - **The router refused "Call me at [PHONE] about the cooling-off period"** as out of scope (the tutor can't call anyone). The prompt now classifies a message by its question about the documents.
+- **A plausible answer can still say something no page says.** Asked "What happens if I lose my job?", the model sometimes joined the 365-day Special Grace Period (p. 11) to the 31-day lapse rule (p. 14): *"if you do not pay after the 365-day period ends, the policy will terminate [2]"*. Every figure is in some source, so the number check passed. A prompt rule against it changed nothing (3 of 6 runs before and after), and an LLM judge shown all passages at once passed the statement too (it found the 365 days on page 11). What works is checking each statement against only the passages **it** cites: the 365 is not in [2]. With the fact check on, across 46 checked answers (two runs of the 15 eval questions, 12 English and 4 Chinese repeats of the job question) it removed exactly 2 statements, both this claim, and nothing else; it costs about +0.7 s and +60% tokens per turn.
 - **Model choice.** `qwen3.6:35b` (mixture of experts, ~3B active) answers in 2–3 s per turn. `qwen3.8:27b` took 9–30 s and once returned truncated router JSON.
 - **Rate limits.** SoCLaaS answers bursts with HTTP 429. A rate-limited router call falls back to keyword routing and a rate-limited answer to the cited passages, but a rate-limited *query embedding* crashed the turn; it now falls back to keyword retrieval for that question.
 
 ### Tests
 
 ```bash
-cd backend && pip install -r requirements-dev.txt && pytest     # 176 tests, ~12 s, no API key needed
+cd backend && pip install -r requirements-dev.txt && pytest     # 184 tests, ~12 s, no API key needed
 ```
 
 The tests cover:
@@ -446,12 +449,13 @@ All settings are environment variables (see `backend/app/config.py`):
 | `EMBEDDING_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | Also a build arg; the local model must be baked in at build time |
 | `TOP_K`, `DENSE_RRF_WEIGHT` | `6`, `0.5` | Passages per answer; weight of the dense vote in RRF |
 | `MAX_INPUT_CHARS`, `RATE_LIMIT_PER_MINUTE` | `2000`, `30` | Input and per-IP request limits |
+| `VERIFY_CLAIMS` | `true` | Fact check of generated answers (one extra LLM call per answer) |
 
 ---
 
 ## 9. Limitations and next steps
 
-- **Answer quality is measured on one live model so far** (SoCLaaS `qwen3.6:35b`, §6). Claude and OpenAI are tested only against a fake wire-format server. The answer suite is small (15 questions) and checks facts with regular expressions, so it misses one failure seen by hand: asked "What happens if I lose my job?", `qwen3.6:35b` sometimes chains facts from two passages into a rule no source states (e.g. that the policy terminates when the 365-day Special Grace Period ends; the brochure's lapse rule is about the 31-day grace period). A prompt rule against chaining conditions did not reduce it (3 of 6 runs before and after), so it was not kept. A claim-level faithfulness check (LLM-as-judge against the cited passage) is the next step.
+- **Answer quality is measured on one live model so far** (SoCLaaS `qwen3.6:35b`, §6). Claude and OpenAI are tested only against a fake wire-format server. The answer suite is small (15 questions) and checks facts with regular expressions. The fact check judges with the same model that answered; a stronger or different judge model, and a labelled set of supported / unsupported statements to measure the judge itself, are the next steps.
 - **Overrides are manual.** A vision-LLM transcription step (render the page to Markdown, then have a human review the diff) would scale the "verified page" approach to many documents.
 - **Scale-out.** The index and the rate limiter live in each process. For many documents and users, move to pgvector or Qdrant, a shared rate limiter (Redis), and real authentication.
 - **Retrieval.** Add a cross-encoder reranker if the corpus grows. The relevance gate uses a BM25 threshold that would need re-tuning for each corpus.
@@ -479,7 +483,7 @@ docker compose up --build     # 打开 http://localhost:8000
 |---|---|
 | 💬 **对话问答** | 流式输出、多轮追问、历史记录；按**提问**的语言与简繁体作答（问简体答简体，问繁体答繁体） |
 | 📄 **RAG 与引用** | 版面感知的 PDF 解析 → 中英双语混合检索（BM25 + 多语向量，RRF 融合）→ 每个论点标注 `[n]` → 点击查看高亮原文页 |
-| 🛡️ **多层防护** | 输入防护（个人信息脱敏、提示注入 / 骗保 / 自伤识别）→ LLM 意图路由 → 相关性闸门 → 严格依据原文的提示词 → 输出校验（引用有效、**数字必须出自原文**、系统提示泄露检测、简繁体转换） |
+| 🛡️ **多层防护** | 输入防护（个人信息脱敏、提示注入 / 骗保 / 自伤识别）→ LLM 意图路由 → 相关性闸门 → 严格依据原文的提示词 → 输出校验（引用有效、**数字必须出自原文**、系统提示泄露检测、简繁体转换）→ **事实核对**（每句话只拿它自己引用的段落核对，删去原文不支持的说法） |
 | 📊 **评测** | 45 道检索题（混合检索 + e5-large 向量：MRR 0.880，Hit@3 95.6%）、70 个防护用例全部通过（含两轮针对未见过问法的红队测试）、15 道答案题；检索与防护评测在 CI 中作为回归门槛。已用 NUS SoCLaaS（qwen3.6:35b）实测：答案事实召回与引用命中均为 100%，带 LLM 改写的混合检索 MRR 0.896（本地 MiniLM）/ 0.926（bge-m3） |
 
 **设计要点**

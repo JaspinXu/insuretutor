@@ -28,6 +28,7 @@ from app.guardrails.input import inspect, sanitize
 from app.guardrails.messages import message
 from app.guardrails.output import check_output, leaked_prompt
 from app.guardrails.router import ANSWERABLE, Route, Router
+from app.guardrails.verify import verify_answer
 from app.lang import Lang, convert_script, detect_language, is_cjk_char
 from app.llm.base import LLMError, LLMProvider, LLMRefusal
 from app.prompts import answer_system, answer_user_message
@@ -372,6 +373,34 @@ class ChatService:
             system_prompt=system,
         )
         timings["output_guard_ms"] = _ms(t0)
+
+        # 6. Claim check: an LLM judge removes statements their cited passages don't support.
+        verify_info = None
+        if self.llm is not None and mode == self.mode and self.settings.verify_claims and out.text and not out.leaked:
+            yield "status", {"stage": "verifying"}
+            t0 = time.perf_counter()
+            checked = await verify_answer(
+                self.llm, out.text, sources, allowed_text=f"{check.text}\n{route.standalone_question}"
+            )
+            timings["verify_ms"] = _ms(t0)
+            verify_info = checked.summary()
+            if checked.usage:
+                usage["verify"] = vars(checked.usage)
+            if checked.removed:
+                out = check_output(
+                    checked.text,
+                    sources=sources,
+                    allowed_text=f"{check.text}\n{route.standalone_question}",
+                    lang=lang,
+                    canary=self.canary,
+                    system_prompt=system,
+                )
+        flags = list(out.flags)
+        if verify_info and verify_info["removed"]:
+            flags.append("unsupported_removed")
+        if verify_info and verify_info["disputed"]:
+            flags.append("unsupported_disputed")
+
         guardrail = None
         text = out.text
         if out.leaked:
@@ -387,11 +416,11 @@ class ChatService:
             mode=mode,
             sources=[] if out.leaked else sources,
             cited=out.cited,
-            flags=out.flags,
+            flags=flags,
             guardrail=guardrail,
             redactions=check.redactions,
             unverified=out.unverified_numbers,
-            metrics=metrics(route=route_info, retrieval=retrieval_info),
+            metrics=metrics(route=route_info, retrieval=retrieval_info, verify=verify_info),
         )
 
     def _extractive(self, hits: list[Hit], lang: Lang, intro: str, query: str, route: Route) -> str:

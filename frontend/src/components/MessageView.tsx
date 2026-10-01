@@ -30,7 +30,7 @@ interface Props {
 }
 
 const STAGES: Stage[] = ["routing", "retrieving", "generating"];
-const TIMING_KEYS = ["input_guard", "route", "retrieve", "generate", "output_guard"];
+const TIMING_KEYS = ["input_guard", "route", "retrieve", "generate", "output_guard", "verify"];
 
 /** "[2]" in the answer becomes a link we render as a citation chip. */
 function linkCitations(text: string): string {
@@ -297,6 +297,16 @@ export default function MessageView({ message: m, lang, onOpenSource, onRate }: 
         {f && f.flags.includes("no_citations") && !f.guardrail && (
           <Notice kind="warn" icon={<TriangleAlert size={16} />}>
             {t(lang, "noCitations")}
+          </Notice>
+        )}
+        {f && f.flags.includes("unsupported_removed") && (
+          <Notice kind="info" icon={<Info size={16} />}>
+            {t(lang, "unsupportedRemoved", { n: String(f.metrics.verify?.removed.length ?? 1) })}
+          </Notice>
+        )}
+        {f && f.flags.includes("unsupported_disputed") && (
+          <Notice kind="warn" icon={<TriangleAlert size={16} />}>
+            {t(lang, "unsupportedDisputed")}
           </Notice>
         )}
         {f && f.flags.includes("invalid_citations_removed") && (

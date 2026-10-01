@@ -222,6 +222,7 @@ async def eval_answers(service: ChatService) -> dict:
                 "cited_pages": cited_pages,
                 "flags": final.get("flags", []),
                 "unverified": final.get("unverified_numbers", []),
+                "removed_statements": ((final.get("metrics") or {}).get("verify") or {}).get("removed", []),
                 "seconds": round(secs, 2),
                 "tokens": sum(u.get("input_tokens", 0) + u.get("output_tokens", 0) for u in usage.values()),
                 "answer": answer,
@@ -237,6 +238,7 @@ async def eval_answers(service: ChatService) -> dict:
             "all_facts": sum(1 for r in rows if r["fact_recall"] == 1) / n,
             "citation_hit": sum(r["citation_hit"] for r in rows) / n,
             "flagged_unverified_numbers": sum(1 for r in rows if r["unverified"]) / n,
+            "claim_check_removals": sum(len(r["removed_statements"]) for r in rows),
             "median_seconds": statistics.median(r["seconds"] for r in rows),
             "mean_tokens": sum(r["tokens"] for r in rows) / n,
         },
@@ -274,6 +276,10 @@ def print_answers(res: dict) -> None:
     for r in res["rows"]:
         if r["missing"] or not r["citation_hit"]:
             print(f"  - {r['id']}: missing {r['missing']} cited pages {r['cited_pages']}")
+    removed = [(r["id"], st) for r in res["rows"] for st in r["removed_statements"]]
+    print(f"\nClaim check removed {len(removed)} statement(s)" + (":" if removed else "."))
+    for rid, st in removed:
+        print(f"  - {rid}: {st[:160]}")
 
 
 # -- main ---------------------------------------------------------------------------------------

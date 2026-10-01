@@ -19,13 +19,22 @@ class FakeLLM(LLMProvider):
     model = "fake-model"
     router_model = "fake-model"
 
-    def __init__(self, route=None, answer="", fail=False):
+    def __init__(self, route=None, answer="", fail=False, unsupported=()):
         self.route = route or {}
         self.answer = answer
         self.fail = fail
-        self.router_calls, self.answer_calls = [], []
+        self.unsupported = unsupported  # statement fragments the claim-check judge rejects
+        self.router_calls, self.answer_calls, self.verify_calls = [], [], []
 
     async def complete_json(self, system, messages, schema, *, max_tokens=1024):
+        if "verdicts" in schema.get("properties", {}):
+            self.verify_calls.append(messages)
+            claims = re.findall(r"^### (S\d+)\nSTATEMENT: (.*)$", messages[-1]["content"], re.M)
+            return {
+                "verdicts": [
+                    {"id": i, "supported": not any(u in c for u in self.unsupported), "reason": "t"} for i, c in claims
+                ]
+            }, Usage(30, 10)
         self.router_calls.append(messages)
         return {
             "intent": "plan_question",
@@ -146,6 +155,30 @@ def test_simplified_chinese_answer_is_converted(make_client):
         f = final(chat(client, "我失业了怎么办？"))
     assert f["lang"] == "zh-Hans"
     assert f["answer"] == "失业时可暂停缴付保费长达365日 [1]。"
+
+
+def test_unsupported_statement_is_removed_by_the_claim_check(make_client):
+    llm = FakeLLM(
+        answer=(
+            "You can suspend premiums for up to 365 days [1]. You stay fully covered [1].\n\n"
+            "- After the 365 days the policy terminates [2]."
+        ),
+        unsupported=["policy terminates"],
+    )
+    with make_client(llm) as client:
+        events = chat(client, "What happens if I lose my job?")
+    f = final(events)
+    assert "terminates" not in f["answer"] and "365 days [1]" in f["answer"]
+    assert "unsupported_removed" in f["flags"] and f["metrics"]["verify"]["checked"] == 3
+    assert f["metrics"]["verify"]["removed"] == ["- After the 365 days the policy terminates [2]."]
+    assert ("status", {"stage": "verifying"}) in events and "verify_ms" in f["metrics"]["timings"]
+
+
+def test_claim_check_can_be_switched_off(make_client):
+    llm = FakeLLM(answer="Up to 365 days [1].", unsupported=["365"])
+    with make_client(llm, verify_claims=False) as client:
+        f = final(chat(client, "What happens if I lose my job?"))
+    assert f["answer"] == "Up to 365 days [1]." and llm.verify_calls == [] and f["metrics"]["verify"] is None
 
 
 def test_offline_mode_answers_extractively(make_client):

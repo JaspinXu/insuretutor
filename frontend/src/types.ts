@@ -36,6 +36,8 @@ export interface Metrics {
     reason: string;
   };
   retrieval?: { queries: string[]; dense: boolean; best_bm25: number };
+  /** Claim check: statements judged unsupported by their cited passages. */
+  verify?: { checked: number; removed: string[]; disputed: string[]; error: string | null } | null;
 }
 
 /** The validated result of one assistant turn (SSE `final` event / stored meta). */
@@ -55,7 +57,7 @@ export interface FinalPayload {
   metrics: Metrics;
 }
 
-export type Stage = "routing" | "retrieving" | "generating";
+export type Stage = "routing" | "retrieving" | "generating" | "verifying";
 
 export interface ChatMessage {
   id: string;

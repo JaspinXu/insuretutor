@@ -72,6 +72,8 @@ class Settings(BaseSettings):
 
     # --- Guardrails / limits ---------------------------------------------
     max_input_chars: int = 2000
+    # LLM judge that removes statements their cited passages don't support (one extra call per answer).
+    verify_claims: bool = True
     history_turns: int = 6
     rate_limit_per_minute: int = 30
 
