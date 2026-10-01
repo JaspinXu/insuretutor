@@ -208,10 +208,34 @@ def test_answer_script_is_forced():
         "Write a Python function to sort a list",
         "幫我寫一首詩",
         "What is the capital of France?",
+        # Creative requests stay out of scope even when they mention insurance.
+        "Tell me a joke about insurance",
+        "Write a poem about life insurance",
+        "讲个关于保险的笑话",
     ],
 )
 def test_heuristic_router_declines_non_insurance_questions(text):
     assert heuristic_route(text, []).intent == "out_of_scope"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Am I eligible?",
+        "How much do I need to put in each year?",
+        "How long is the contract?",
+        "Is there a minimum amount?",
+        "Who is this product for?",
+        "Can I name my kids to receive the money?",
+        "Can you write out the fees as a table?",
+        "最少要存多少钱？",
+        "要交多少年？",
+        "我有资格投保吗？",
+    ],
+)
+def test_heuristic_router_accepts_lay_wording(text):
+    """Customers rarely use the brochure's vocabulary; these must not be refused as off-topic."""
+    assert heuristic_route(text, []).intent == "plan_question"
 
 
 def test_heuristic_router_follow_ups():

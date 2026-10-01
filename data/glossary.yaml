@@ -31,7 +31,7 @@ entries:
   - terms: Minimum Sum Insured Maximum Sum Insured 最低保障額 最高保障額
     aliases: [minimum coverage, maximum coverage, sum assured, smallest policy, 最低保額, 最低保额, 最高保額, 最高保额, 最少保額]
   - terms: Issue Age At Last Birthday 投保年齡
-    aliases: [how old, age limit, too old, maximum age, max age, oldest age, age to apply, eligible age, 年齡限制, 年龄限制, 幾歲, 几岁, 多大, 最大年齡, 最高年齡]
+    aliases: [how old, age limit, too old, maximum age, max age, oldest age, age to apply, eligible age, eligible, eligibility, qualify, who can apply, 年齡限制, 年龄限制, 幾歲, 几岁, 多大, 最大年齡, 最高年齡, 資格, 资格]
   - terms: Premium Expense Charge Cost of Insurance Administrative Charge 保費行政費用 保險成本 一般行政費用
     aliases: [fee, fees, cost, costs, how much does it cost, 收費, 收费, 扣費, 扣费]
   - terms: crediting interest rate Extra Bonus guaranteed interest 派息率 額外回報 利息保證

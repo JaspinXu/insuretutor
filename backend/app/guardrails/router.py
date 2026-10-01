@@ -41,10 +41,19 @@ _DOMAIN_RE = re.compile(
     r"riders?|supplementary|currenc\w*|pay\w*|lapse\w*|grace|maturity|matures?|beneficiar\w*|underwrit\w*|"
     r"disclos\w*|medical|smok\w*|universal life|flexi\w*|prime saver|yf life|savings?|invest\w*|retire\w*|"
     r"education|protection|insured|owner|appl(?:y|ying|ied|ication|icants?)|conditions?|pre-existing|"
-    r"diabet\w*|hypertension|cancer|heart)\b|"
+    r"diabet\w*|hypertension|cancer|heart|"
+    # Lay words a customer uses for the same things ("am I eligible?", "how much do I put in?").
+    r"eligib\w*|qualif\w*|contracts?|products?|amounts?|minimum|maximum|money|deposit\w*|put in|pay in|"
+    r"payout|lump sum)\b|"
     r"保险|保单|保费|保障|保额|计划|寿险|理赔|赔偿|赔|退保|提取|提款|现金价值|账户价值|利息|派息|回报|收益|利率|费用|"
     r"收费|保证|年龄|身故|死|疾病|病|失业|冷静期|取消|不保|附加|货币|缴费|缴付|期满|宽限|投保|受保|披露|吸烟|万用|"
-    r"万通|储蓄|供款|退休|教育",
+    r"万通|储蓄|供款|退休|教育|资格|合同|合约|产品|金额|最低|最高|钱|存|交(?:多少|几年|费|钱)",
+    re.I,
+)
+# Creative / chit-chat requests are out of scope even when they mention insurance ("tell me a joke about insurance").
+_CHITCHAT_RE = re.compile(
+    r"\b(?:tell|write|compose|make up|give)\b.{0,15}\b(?:jokes?|poems?|stor(?:y|ies)|songs?|haikus?|limericks?|raps?|riddles?)\b|"
+    r"(讲|说|写|编|来)(一?个|一首|一段|首|段|几个)?.{0,8}(笑话|诗|故事|歌|段子)",
     re.I,
 )
 _REFERENTIAL_RE = re.compile(
@@ -78,6 +87,8 @@ def heuristic_route(message: str, history: list[dict], glossary: Glossary | None
     is_follow_up = (
         bool(history) and len(message) < 40 and bool(_REFERENTIAL_RE.search(probe) or _ADVICE_RE.search(probe))
     )
+    if _CHITCHAT_RE.search(probe):
+        return Route("out_of_scope", message, reason="creative / chit-chat request")
     if not (_DOMAIN_RE.search(probe) or (glossary and glossary.expand(message)) or is_follow_up):
         return Route("out_of_scope", message, reason="no insurance vocabulary")
     intent = "advice_request" if _ADVICE_RE.search(probe) else "plan_question"
