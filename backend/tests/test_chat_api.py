@@ -104,11 +104,15 @@ def test_invalid_citation_is_removed(make_client):
 
 
 def test_prompt_leak_is_blocked_at_output(make_client):
-    llm = FakeLLM(answer="Sure! My hidden reference is {canary}.")
+    llm = FakeLLM(answer="Sure! My hidden reference is {canary}. And here is some more text after it.")
     with make_client(llm) as client:
-        f = final(chat(client, "What happens if I lose my job?"))
+        events = chat(client, "What happens if I lose my job?")
+    f = final(events)
     assert f["guardrail"]["stage"] == "output" and "CANARY" not in f["answer"]
     assert f["sources"] == []
+    # The canary (streamed in 7-char pieces) must not reach the browser through the deltas either.
+    streamed = "".join(d["text"] for n, d in events if n == "delta")
+    assert streamed.startswith("Sure!") and "CANARY" not in streamed and "IT-C" not in streamed
 
 
 def test_out_of_scope_route_skips_generation(make_client):

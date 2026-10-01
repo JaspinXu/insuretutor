@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from app.config import Settings
 from app.guardrails.input import inspect, sanitize
 from app.guardrails.messages import message
-from app.guardrails.output import check_output
+from app.guardrails.output import check_output, leaked_prompt
 from app.guardrails.router import ANSWERABLE, Route, Router
 from app.lang import Lang, convert_script, detect_language, is_cjk_char
 from app.llm.base import LLMError, LLMProvider, LLMRefusal
@@ -326,15 +326,23 @@ class ChatService:
                     ),
                 },
             ]
-            parts: list[str] = []
+            # The output guard runs on the finished answer, but deltas reach the browser first.
+            # So the stream itself is screened: the last len(canary) chars are held back, which
+            # means a canary can never be sent, even split across deltas, before it is detected;
+            # on a leak the stream stops and the final event carries the refusal.
+            answer, sent, hold = "", 0, len(self.canary)
             try:
                 async for ev in self.llm.stream(system, messages):
                     if ev.done:
                         usage["answer"] = vars(ev.usage)
                         break
-                    parts.append(ev.text)
-                    yield "delta", {"text": convert_script(ev.text, lang)}
-                answer = "".join(parts)
+                    answer += ev.text
+                    if leaked_prompt(answer, self.canary, system):
+                        log.warning("Prompt leak detected mid-stream; stopping generation")
+                        break
+                    if len(answer) - hold > sent:
+                        yield "delta", {"text": convert_script(answer[sent : len(answer) - hold], lang)}
+                        sent = len(answer) - hold
             except LLMRefusal:
                 log.warning("Provider refused to answer; returning template")
                 yield canned("refused", "generation", route.intent, None, {"route": route_info})
