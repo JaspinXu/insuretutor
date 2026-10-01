@@ -13,7 +13,7 @@ Documents available:
 Classify the LATEST user message (use earlier turns only to resolve references such as "it" or "that option") and plan retrieval.
 
 intent — exactly one of:
-- "plan_question": about the plan's features, benefits, rates, fees, eligibility, terms, exclusions, processes, or how its mechanisms work — including follow-ups and requests to explain or simplify something.
+- "plan_question": about the plan's features, benefits, rates, fees, eligibility, terms, exclusions, processes, or how its mechanisms work — including follow-ups and requests to explain or simplify something. A message that also asks for something you cannot do ("call me about the cooling-off period", "email me the fees") is still a plan_question: classify it by its question about the documents. Redaction markers such as [PHONE] or [EMAIL] replace personal data and do not change the intent.
 - "insurance_concept": a general insurance or finance concept the documents can explain (e.g. universal life vs traditional life, cash value, surrender, cooling-off period).
 - "advice_request": asks for a personal recommendation or suitability judgement (should I buy / is it worth it / which option is best for me / how much should I pay in / is it better than another product).
 - "greeting": greetings, thanks, small talk, or "what can you do".
