@@ -2,17 +2,29 @@ import type { AppConfig, ChatMessage, ConversationSummary, FinalPayload, Lang, S
 
 const CLIENT_KEY = "insuretutor.clientId";
 
+let sessionId: string | null = null;
+
+/** Random id. crypto.randomUUID() exists only in secure contexts (HTTPS or localhost), so a
+ * phone opening the demo at http://<LAN-IP>:8000 needs the getRandomValues() fallback. */
+function randomId(): string {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 /** Anonymous per-browser id; the server scopes conversation history to it. */
 export function clientId(): string {
   try {
     let id = localStorage.getItem(CLIENT_KEY);
     if (!id) {
-      id = crypto.randomUUID();
+      id = randomId();
       localStorage.setItem(CLIENT_KEY, id);
     }
     return id;
   } catch {
-    return "anonymous";
+    // Storage blocked (e.g. private mode): keep a per-tab id rather than one shared by everyone.
+    sessionId ??= randomId();
+    return sessionId;
   }
 }
 
