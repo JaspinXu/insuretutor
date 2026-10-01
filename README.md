@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/FastAPI-SSE-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
   <img src="https://img.shields.io/badge/React_19-TypeScript-3178C6?logo=react&logoColor=white" alt="React 19 + TypeScript" />
   <img src="https://img.shields.io/badge/docker_compose-up-2496ED?logo=docker&logoColor=white" alt="Docker Compose" />
-  <img src="https://img.shields.io/badge/tests-171_passing-2ea44f" alt="171 tests" />
+  <img src="https://img.shields.io/badge/tests-176_passing-2ea44f" alt="176 tests" />
 </p>
 
 <p align="center">
@@ -67,6 +67,7 @@ Open **http://localhost:8000**.
 |---|---|
 | Anthropic (Claude) | `ANTHROPIC_API_KEY=sk-ant-...` (default model `claude-opus-5-5`; override with `LLM_MODEL`) |
 | OpenAI | `OPENAI_API_KEY=sk-...` (default `gpt-4.1-mini`) |
+| NUS SoCLaaS (School of Computing LLM-as-a-Service) | `SOCLAAS_API_KEY=clsk_...` (default model `qwen3.6:35b`; the gateway URL is built in). Tested live, see §6 |
 | Any OpenAI-compatible API (DeepSeek, Qwen/DashScope, Ollama, …) | `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `LLM_MODEL` (examples in `.env.example`) |
 | **No key** | Works out of the box in **offline mode**: same retrieval, citations and guardrails, but answers are the most relevant passages instead of generated text |
 
@@ -149,7 +150,7 @@ backend/
     store.py       SQLite persistence            api/routes.py  HTTP + SSE endpoints
     lang.py        language / script detection   main.py      app factory
   eval/            run.py + datasets/ (retrieval, guardrails, answers)
-  tests/           171 tests: ingestion, retrieval, guardrails, providers, end-to-end API
+  tests/           176 tests: ingestion, retrieval, guardrails, providers, end-to-end API
 frontend/          React 19 + TypeScript + Vite (chat, citations, source viewer, i18n, dark mode)
 data/
   docs/            FLEXI-ULife_Prime_Saver.pdf + catalog.yaml (metadata, font errata, page priorities)
@@ -196,7 +197,7 @@ The extractor (PyMuPDF) keeps the content-stream order, which keeps each Chinese
 
 - **BM25 with a bilingual tokenizer.** Chinese is normalized to Simplified (t2s is many-to-one, so a Simplified query matches the Traditional brochure) and split into character bigrams. English is stemmed. Numbers are normalized (`50,000` → `50000`).
 - **Dense embeddings** use a multilingual ONNX model through fastembed: no PyTorch, and the model is baked into the image so the container needs no network access. Chunks are embedded as short windows and scored by their best window, because small encoders truncate long inputs.
-- **Reciprocal Rank Fusion** combines all ranked lists: the user's question plus the router's English and Traditional-Chinese rewrites, each searched with BM25 and with embeddings. RRF fuses ranks, so BM25 and cosine scores never need calibrating against each other. Dense lists vote at weight 0.5: exact product vocabulary leads, while embeddings break ties and rescue paraphrases. The weight was chosen from the eval (§6).
+- **Reciprocal Rank Fusion** combines all ranked lists, each searched with BM25 and with embeddings: the user's question and the router's standalone rewrite at full weight, plus the router's English and Traditional-Chinese keyword queries **pooled into one list at half weight**. RRF fuses ranks, so BM25 and cosine scores never need calibrating against each other. Dense lists vote at weight 0.5: exact product vocabulary leads, while embeddings break ties and rescue paraphrases. Both weights were chosen from the eval (§6). Pooling came from the live run: when each keyword query had its own full vote, generic rewrites outvoted the question.
 - **Glossary expansion** (`data/glossary.yaml`) bridges lay language and brochure terms, at half weight. For example, "lose my job" → *Unemployment Protection 失業保障*, and "change my mind" → *cooling-off period 冷靜期*. The eval showed that expanding words the brochure *already uses* hurt ranking, so aliases are limited to genuine lay terms.
 - **Why no vector database?** There are tens of chunks per brochure, and exact in-memory search takes milliseconds with no moving parts. Swapping in pgvector or Qdrant for thousands of documents would only change the `Retriever` class.
 - **Why RAG at all for a 13.5k-token corpus?** It would fit in a context window. But the task asks for a *collection* of documents, focused context gives more precise and citable answers, and cost and latency per question stay flat as documents are added.
@@ -221,7 +222,7 @@ The extractor (PyMuPDF) keeps the content-stream order, which keeps each Chinese
 Three provider modes are supported:
 
 - **Anthropic**: official SDK, with effort control, refusal handling and server-side refusal fallback. The fallback is a beta; if the account or a proxy rejects it, it is switched off once and the call is retried without it.
-- **OpenAI or any OpenAI-compatible API**: degrades gracefully when a server rejects optional parameters.
+- **OpenAI or any OpenAI-compatible API**, including **NUS SoCLaaS** (`SOCLAAS_API_KEY` alone selects it): degrades gracefully when a server rejects optional parameters.
 - **Offline** (no key): extractive answers. From each cited passage it quotes the lines that best match the question, scored with the glossary and the heading each line sits under (a table row such as *"A Special Grace Period of up to 365 days"* is found through its row label *Unemployment Benefit*), and labels the quote with that heading.
 
 If the LLM fails mid-turn, the user still gets the cited passages. Both adapters are tested against a local fake server that speaks each wire format.
@@ -292,7 +293,7 @@ What the numbers taught me:
 - **The first glossary version *lowered* Hit@3.** It also expanded words the brochure already uses ("surrender", "interest rate"), which pulled in the wrong sections.
 
 > [!IMPORTANT]
-> - **These are lower bounds.** They measure retrieval from the question text alone, without the LLM router's query rewriting.
+> - **These rows measure the question text alone.** With an LLM configured, the router's rewrites are searched too; `python -m eval.run retrieval --router` adds that row (live numbers below).
 > - **The hybrid rows use a larger model** than the image ships with: `intfloat/multilingual-e5-large`. The Docker image bakes the smaller `paraphrase-multilingual-MiniLM-L12-v2` (220 MB) to keep the build light. Select e5-large with `EMBEDDING_MODEL=intfloat/multilingual-e5-large docker compose build`, and run `python -m eval.run retrieval` to measure your configuration.
 > - **Treat this as a regression benchmark.** The dataset is small and the weights were chosen on it.
 
@@ -337,10 +338,43 @@ The lesson: pattern rules have a long tail, which is why they only handle high-c
 
 The set includes a *not-in-the-documents* question (exact cost-of-insurance rates), a *personal-advice* question, and the *English/Chinese discrepancy* question.
 
+### Live run: NUS SoCLaaS, `qwen3.6:35b`
+
+All three suites were run against a live model through the SoCLaaS gateway (answers and guardrails with BM25 + glossary retrieval). The first run found four problems; each fix below is its own commit.
+
+| Answers (15 questions) | Fact recall | All facts | Citation hit | Unverified-number flags | Median turn |
+|---|---|---|---|---|---|
+| First run¹ | 83.3% | 80.0% | 93.3% | 0% | 2.5 s |
+| + pooled router queries | 90.0% | 86.7% | 100% | 0% | 2.6 s |
+| + table rows, discrepancy note (now, two runs) | **100%** | **100%** | **100%** | 0% | 2.7 s |
+
+Retrieval, 45 questions, k=6. The router's rewrites differ a little from run to run, so one set of live rewrites was recorded and replayed through every configuration:
+
+| Configuration | Hit@1 | Hit@3 | Hit@6 | MRR |
+|---|---|---|---|---|
+| BM25 + glossary, question only (no LLM) | 77.8% | 91.1% | 100% | 0.855 |
+| BM25 + glossary + rewrites, each its own full RRF vote (before) | 66.7% | 88.9% | 93.3% | 0.780 |
+| BM25 + glossary + rewrites pooled at half weight (now) | 80.0% | 95.6% | 100% | 0.881 |
+| Hybrid, local MiniLM (the Docker default) + rewrites pooled | 80.0% | **100%** | 100% | 0.896 |
+| Hybrid, SoCLaaS `bge-m3` (`EMBEDDING_BACKEND=openai`) + rewrites pooled | **86.7%** | **100%** | 100% | **0.926** |
+
+Guardrails with the LLM router in the loop: 69 / 70, then **70 / 70** after the router fix below.
+
+<sub>¹ The first answers run overlapped with the other suites, and SoCLaaS rate-limits bursts (HTTP 429), so a few turns fell back to keyword routing. Run suites one at a time.</sub>
+
+What the live run taught me:
+
+- **LLM query rewriting made retrieval worse, until it was pooled.** For "What happens if I lose my job?" the router wrote *premium payment default*, *policy lapse* and *automatic premium loan* (a feature this plan doesn't have). As four full RRF votes they pushed the Unemployment Protection pages out of the top 6, and the answer never mentioned the 365-day grace period. Now the question and the router's standalone rewrite vote at full weight and the keyword queries share one half-weight list. On the replayed rewrites, MRR went from 0.780 to 0.881 (table above). Giving the router the brochure's headings and glossary as vocabulary was also tried, and made its rewrites worse (0.840).
+- **Tables need rows.** The minimum-sum-insured cell was a nested list. In both runs the model gave the FP80/100/130 amount for an FP180/280 question. As a table with one row per plan and age band, it answers correctly.
+- **A known inconsistency is best stated in the source.** The prompt asks the model to point out English/Chinese discrepancies, yet it quoted only one side in both runs. A transcriber's note on the page fixed it.
+- **The router refused "Call me at [PHONE] about the cooling-off period"** as out of scope (the tutor can't call anyone). The prompt now classifies a message by its question about the documents.
+- **Model choice.** `qwen3.6:35b` (mixture of experts, ~3B active) answers in 2–3 s per turn. `qwen3.8:27b` took 9–30 s and once returned truncated router JSON.
+- **Rate limits.** SoCLaaS answers bursts with HTTP 429. A rate-limited router call falls back to keyword routing and a rate-limited answer to the cited passages, but a rate-limited *query embedding* crashed the turn; it now falls back to keyword retrieval for that question.
+
 ### Tests
 
 ```bash
-cd backend && pip install -r requirements-dev.txt && pytest     # 171 tests, ~12 s, no API key needed
+cd backend && pip install -r requirements-dev.txt && pytest     # 176 tests, ~12 s, no API key needed
 ```
 
 The tests cover:
@@ -391,10 +425,11 @@ All settings are environment variables (see `backend/app/config.py`):
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `LLM_PROVIDER` | `auto` | `anthropic`, `openai`, `offline`, or `auto` (first key found) |
+| `LLM_PROVIDER` | `auto` | `anthropic`, `openai`, `soclaas`, `offline`, or `auto` (first key found, in that order) |
 | `LLM_MODEL` / `ROUTER_MODEL` | provider default | Answer model / optional separate routing model |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_EFFORT`, `ANTHROPIC_ROUTER_EFFORT`, `ANTHROPIC_REFUSAL_FALLBACK` | –, `medium`, `low`, `true` | Claude settings |
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | – | OpenAI or a compatible endpoint |
+| `SOCLAAS_API_KEY`, `SOCLAAS_URL` | –, `https://soclaas-api.comp.nus.edu.sg` | NUS SoCLaaS (OpenAI-compatible); default model `qwen3.6:35b`, embeddings `bge-m3` |
 | `EMBEDDING_BACKEND` | `local` | `local` (baked ONNX model), `openai` (`/embeddings` API), `none` (BM25 only) |
 | `EMBEDDING_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | Also a build arg; the local model must be baked in at build time |
 | `TOP_K`, `DENSE_RRF_WEIGHT` | `6`, `0.5` | Passages per answer; weight of the dense vote in RRF |
@@ -404,7 +439,7 @@ All settings are environment variables (see `backend/app/config.py`):
 
 ## 9. Limitations and next steps
 
-- **Answer quality needs a live-model run.** Retrieval, guardrails and both provider adapters are tested offline. Before release, the answer suite (`eval.run answers`) should be run with the chosen model and extended with an LLM-as-judge faithfulness score.
+- **Answer quality is measured on one live model so far** (SoCLaaS `qwen3.6:35b`, §6). Claude and OpenAI are tested only against a fake wire-format server. The answer suite is small (15 questions) and checks facts with regular expressions; an LLM-as-judge faithfulness score would be the next step.
 - **Overrides are manual.** A vision-LLM transcription step (render the page to Markdown, then have a human review the diff) would scale the "verified page" approach to many documents.
 - **Scale-out.** The index and the rate limiter live in each process. For many documents and users, move to pgvector or Qdrant, a shared rate limiter (Redis), and real authentication.
 - **Retrieval.** Add a cross-encoder reranker if the corpus grows. The relevance gate uses a BM25 threshold that would need re-tuning for each corpus.
@@ -420,7 +455,7 @@ All settings are environment variables (see `backend/app/config.py`):
 **快速开始**
 
 ```bash
-cp .env.example .env          # 填入一个 API Key（Anthropic / OpenAI / 任意 OpenAI 兼容接口，如 DeepSeek、通义千问）
+cp .env.example .env          # 填入一个 API Key（Anthropic / OpenAI / NUS SoCLaaS / 任意 OpenAI 兼容接口，如 DeepSeek、通义千问）
 docker compose up --build     # 打开 http://localhost:8000
 ```
 
@@ -433,7 +468,7 @@ docker compose up --build     # 打开 http://localhost:8000
 | 💬 **对话问答** | 流式输出、多轮追问、历史记录；按**提问**的语言与简繁体作答（问简体答简体，问繁体答繁体） |
 | 📄 **RAG 与引用** | 版面感知的 PDF 解析 → 中英双语混合检索（BM25 + 多语向量，RRF 融合）→ 每个论点标注 `[n]` → 点击查看高亮原文页 |
 | 🛡️ **多层防护** | 输入防护（个人信息脱敏、提示注入 / 骗保 / 自伤识别）→ LLM 意图路由 → 相关性闸门 → 严格依据原文的提示词 → 输出校验（引用有效、**数字必须出自原文**、系统提示泄露检测、简繁体转换） |
-| 📊 **评测** | 45 道检索题（混合检索 + e5-large 向量：MRR 0.880，Hit@3 95.6%）、70 个防护用例全部通过（含两轮针对未见过问法的红队测试）、15 道答案题；检索与防护评测在 CI 中作为回归门槛 |
+| 📊 **评测** | 45 道检索题（混合检索 + e5-large 向量：MRR 0.880，Hit@3 95.6%）、70 个防护用例全部通过（含两轮针对未见过问法的红队测试）、15 道答案题；检索与防护评测在 CI 中作为回归门槛。已用 NUS SoCLaaS（qwen3.6:35b）实测：答案事实召回与引用命中均为 100%，带 LLM 改写的混合检索 MRR 0.896（本地 MiniLM）/ 0.926（bge-m3） |
 
 **设计要点**
 
