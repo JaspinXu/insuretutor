@@ -49,7 +49,9 @@ _PII_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("NRIC", re.compile(r"(?<![A-Za-z0-9])[STFGM]\d{7}[A-Z](?![A-Za-z0-9])")),
     ("ID_NUMBER", re.compile(r"(?<!\d)\d{6}(?:19|20)\d{2}(?:0[1-9]|1[0-2])\d{5}[\dXx](?![\dA-Za-z])")),
     ("PHONE", re.compile(r"(?<![\d$])(?:\+?86[ -]?)?1[3-9]\d{9}(?!\d)")),
-    ("PHONE", re.compile(r"(?<![\d$.,])(?:\+?(?:852|853|65)[ -]?)?[2-9]\d{3}[ -]?\d{4}(?![\d,])")),
+    # A comma right after the number is ordinary punctuation ("call 91234567, thanks"); only a
+    # comma followed by more digits means it is part of a larger figure ("2000,000").
+    ("PHONE", re.compile(r"(?<![\d$.,])(?:\+?(?:852|853|65)[ -]?)?[2-9]\d{3}[ -]?\d{4}(?!\d|,\d)")),
 ]
 _CARD_RE = re.compile(r"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)")
 

@@ -21,6 +21,8 @@ def test_sanitize_strips_zero_width_but_keeps_chinese_punctuation():
         ("card 4111 1111 1111 1111", "CARD_NUMBER"),
         ("call 13812345678", "PHONE"),
         ("whatsapp +852 9123 4567", "PHONE"),
+        ("My phone is 91234567, can you call me?", "PHONE"),
+        ("我的電話是 6123 4567，謝謝", "PHONE"),
         ("身份證 110101199003071234", "ID_NUMBER"),
     ],
 )
@@ -32,6 +34,8 @@ def test_pii_is_redacted(text, kind):
 def test_amounts_and_rates_are_not_mistaken_for_pii():
     text = "Is the limit US$50,000 or HK$400,000 at 2.5% for age 45, policy year 15?"
     assert redact_pii(text) == (text, [])
+    big = "A sum insured of HK$2,000,000, or 3000,000 written oddly, is not a phone number."
+    assert redact_pii(big) == (big, [])
 
 
 @pytest.mark.parametrize(
