@@ -67,3 +67,13 @@ def test_footnote_markers_link_to_notes(corpus):
 def test_key_facts_land_on_the_right_page(corpus, needle, page):
     hits = [c.page for c in corpus.chunks if needle in c.text]
     assert page in hits, f"{needle!r} not found on page {page} (found on {hits})"
+
+
+def test_packed_chunks_name_every_sub_section(corpus):
+    """A chunk packing several short sections keeps its first heading as the retrieval label but
+    shows all of them, so a citation of the suicide exclusion doesn't read "Inflation Risk"."""
+    c = next(c for c in corpus.chunks if c.page == 14 and "Key Exclusions" in c.text and c.lang == "en")
+    assert c.section.endswith("Inflation Risk")
+    assert c.display_section.endswith("Inflation Risk · Credit Risk · Key Exclusions")
+    single = next(c for c in corpus.chunks if c.page == 13 and c.lang == "en")
+    assert single.display_section == single.section

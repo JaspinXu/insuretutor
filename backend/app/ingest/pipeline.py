@@ -20,7 +20,7 @@ from app.ingest.overrides import load_overrides
 from app.ingest.pdf import extract_document
 
 # Bump when extraction/chunking logic changes, to invalidate cached indexes.
-INGEST_VERSION = "3"
+INGEST_VERSION = "4"
 
 
 @dataclass
@@ -85,6 +85,6 @@ if __name__ == "__main__":
             print(json.dumps(c.to_dict(), ensure_ascii=False))
     else:
         for c in corpus.chunks:
-            print(f"\n=== {c.id}  [{c.lang}, {c.source}]  {c.section}")
+            print(f"\n=== {c.id}  [{c.lang}, {c.source}]  {c.display_section}")
             print(c.text)
         print(f"\n{len(corpus.chunks)} chunks from {len(corpus.documents)} document(s)")

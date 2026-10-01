@@ -138,7 +138,7 @@ class ChatService:
             "doc_id": c.doc_id,
             "doc_title": doc.display_title(lang) if doc else c.doc_id,
             "page": c.page,
-            "section": convert_script(c.section, lang),
+            "section": convert_script(c.display_section, lang),
             "text": c.text,
             "lang": c.lang,
             "source": c.source,

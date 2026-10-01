@@ -17,6 +17,7 @@ from app.lang import is_cjk_char
 
 MAX_TOKENS = 420
 MIN_TOKENS = 60
+MAX_LABELS = 3  # sub-section names shown in a chunk's display label
 _NOTE_RE = re.compile(r"\s*\[Note \d+\]")
 _CJK_RE = re.compile(r"[㐀-鿿]")
 
@@ -126,8 +127,13 @@ def chunk_page(page: Page, doc_title: str) -> list[Chunk]:
         text = "\n".join(line for s in group for line in s.lines()).strip()
         if not text:
             continue
-        label = next((s.label for s in group if s.label and s.label != title), "")
+        labels = list(dict.fromkeys(s.label for s in group if s.label and s.label != title))
+        label = labels[0] if labels else ""
         section = " › ".join(p for p in (title, label) if p) or doc_title
+        # Packed sections are all named in the display label, so a citation of the suicide
+        # exclusion doesn't read "Inflation Risk" just because that heading came first.
+        shown = " · ".join(labels[:MAX_LABELS]) + (" …" if len(labels) > MAX_LABELS else "")
+        display = " › ".join(p for p in (title, shown) if p) or doc_title
         chunks.append(
             Chunk(
                 id=f"{page.doc_id}:p{page.number:02d}:{i}",
@@ -138,6 +144,7 @@ def chunk_page(page: Page, doc_title: str) -> list[Chunk]:
                 lang=chunk_language(text),  # type: ignore[arg-type]
                 source=page.source,
                 bboxes=[bb for s in group for bb in s.bboxes()],
+                label=display if len(labels) > 1 else "",
             )
         )
     return chunks

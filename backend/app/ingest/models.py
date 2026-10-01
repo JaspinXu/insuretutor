@@ -86,6 +86,13 @@ class Chunk:
     lang: Literal["en", "zh-Hant", "mixed"]
     source: Literal["extracted", "override"]
     bboxes: list[BBox] = field(default_factory=list)
+    # Display label naming every sub-section the chunk covers ("Inflation Risk · Credit Risk · Key
+    # Exclusions"); `section` names only the first and is what retrieval indexes.
+    label: str = ""
+
+    @property
+    def display_section(self) -> str:
+        return self.label or self.section
 
     def to_dict(self) -> dict:
         return asdict(self)
