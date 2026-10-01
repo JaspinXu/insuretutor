@@ -26,7 +26,8 @@ ROUTE_JSON = {"intent": "plan_question", "standalone_question": "q", "search_que
 class FakeServer:
     def __init__(self):
         self.requests: list[dict] = []
-        self.reject: set[str] = set()  # body keys that trigger a 400
+        self.reject: set[str] = set()  # body keys that trigger an error response
+        self.reject_status = 400
         self.stop_reason = "end_turn"
         app = Starlette(
             routes=[
@@ -61,7 +62,8 @@ class FakeServer:
         hit = self.reject & set(body)
         if hit:
             return JSONResponse(
-                {"error": {"type": "invalid_request_error", "message": f"unsupported: {hit}"}}, status_code=400
+                {"error": {"type": "invalid_request_error", "message": f"unsupported: {hit}"}},
+                status_code=self.reject_status,
             )
         return None
 
@@ -215,6 +217,28 @@ def test_anthropic_fallback_beta_rejected_is_disabled(server, monkeypatch):
     text, _ = asyncio.run(collect(p))
     assert text == "Up to 365 days [1]." and p.fallback_enabled is False
     assert server.requests[-1]["query"] == "" and "fallbacks" not in server.requests[-1]["body"]
+
+
+@pytest.mark.parametrize("status", [403, 404])
+def test_anthropic_fallback_beta_unavailable_is_disabled(server, monkeypatch, status):
+    """An account not enrolled in the beta (403) or a proxy that doesn't know it (404) must not
+    turn every turn into an LLM failure: the beta is dropped and both calls still succeed."""
+    server.reject, server.reject_status = {"fallbacks"}, status
+    p = anthropic_provider(server, monkeypatch)
+    data, _, text, _ = asyncio.run(json_then_stream(p))
+    assert data == ROUTE_JSON and text == "Up to 365 days [1]." and p.fallback_enabled is False
+    beta_calls = [r for r in server.requests if r["query"] == "beta=true"]
+    assert len(beta_calls) == 1  # tried once, then never again
+
+
+def test_anthropic_auth_error_is_not_mistaken_for_missing_beta(server, monkeypatch):
+    from app.llm.base import LLMError
+
+    server.reject, server.reject_status = {"fallbacks"}, 401
+    p = anthropic_provider(server, monkeypatch)
+    with pytest.raises(LLMError):
+        asyncio.run(collect(p))
+    assert p.fallback_enabled is True
 
 
 def test_anthropic_refusal_raises(server, monkeypatch):

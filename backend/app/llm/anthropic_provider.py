@@ -8,8 +8,10 @@
   temperature are not sent: current Claude models reject them.
 * The server-side refusal fallback (beta) is enabled by default on the models
   that support it: if the model declines on safety grounds, the API retries on
-  a fallback model inside the same call. If the account/SDK rejects the beta,
-  the provider turns it off and retries without it.
+  a fallback model inside the same call. If the account, endpoint or SDK
+  rejects the beta (400/403/404/422, or an SDK without the parameter), the
+  provider turns it off for the rest of the process and retries without it,
+  so an account without the beta still gets generated answers.
 * ``stop_reason == "refusal"`` is surfaced as ``LLMRefusal``.
 """
 
@@ -36,6 +38,18 @@ ROUTER_MAX_TOKENS = 4000
 
 def supports_effort(model: str) -> bool:
     return not any(tag in model for tag in _NO_EFFORT)
+
+
+# Responses to the beta call that mean "the beta is not available here" rather than "the request
+# failed": an unknown parameter (400/422), a beta the account is not enrolled in (403), an endpoint
+# or proxy that does not know it (404). Auth, rate-limit and server errors are real failures.
+_BETA_REJECTED_STATUS = {400, 403, 404, 422}
+
+
+def beta_rejected(exc: Exception) -> bool:
+    if isinstance(exc, TypeError):  # an SDK version without the `fallbacks` parameter
+        return True
+    return isinstance(exc, anthropic.APIStatusError) and exc.status_code in _BETA_REJECTED_STATUS
 
 
 class AnthropicProvider(LLMProvider):
@@ -81,7 +95,9 @@ class AnthropicProvider(LLMProvider):
             if self._use_fallback(model):
                 try:
                     resp = await self.client.beta.messages.create(**params, betas=[FALLBACK_BETA], fallbacks="default")
-                except anthropic.BadRequestError as exc:
+                except (anthropic.APIStatusError, TypeError) as exc:
+                    if not beta_rejected(exc):
+                        raise
                     self._disable_fallback(exc)
                     resp = await self.client.messages.create(**params)
             else:
@@ -120,8 +136,8 @@ class AnthropicProvider(LLMProvider):
                             yield StreamEvent(text=text)
                         final = await stream.get_final_message()
                     break
-                except anthropic.BadRequestError as exc:
-                    if use_fallback and not emitted:
+                except (anthropic.APIStatusError, TypeError) as exc:
+                    if use_fallback and not emitted and beta_rejected(exc):
                         self._disable_fallback(exc)
                         use_fallback = False
                         continue
