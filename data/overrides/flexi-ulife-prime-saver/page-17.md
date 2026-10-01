@@ -5,20 +5,23 @@ reason: >
   rows, losing which amount belongs to which plan and age band.
 verified: >
   Transcribed verbatim (both languages) against the rendered PDF page.
-  Source inconsistency kept as printed: for "Increase / Decrease Sum Insured"
-  the Chinese text says 40,000港元 / 400,000澳門元 while the English text says
-  HK$400,000 / MOP40,000.
+  The Minimum Sum Insured cell is laid out as a table with one row per plan
+  and age band (in a live run, a list form let the model read the
+  FP80/100/130 >= 45 amount for an FP180/280 question). Source inconsistency
+  kept as printed: for "Increase / Decrease Sum Insured" the Chinese text
+  says 40,000港元 / 400,000澳門元 while the English text says HK$400,000 /
+  MOP40,000; a transcriber's note under the two lines says so explicitly.
 ---
 # 保單資料 Policy Information
 
 ### 最低保障額 Minimum Sum Insured
-- FP80/100/130, < Age 45 歲:
-  - 香港保單 Hong Kong Policies: US$30,000美元 / HK$240,000港元
-  - 澳門保單 Macau Policies: US$25,000美元 / MOP / HK$200,000澳門元 / 港元
-- FP80/100/130, ≥ Age 45 歲: US$15,000美元 / HK$ / MOP120,000港元 / 澳門元
-- FP180/280, < Age 45 歲: US$15,000美元 / HK$ / MOP120,000港元 / 澳門元
-- FP180/280, ≥ Age 45 歲: US$8,000美元 / HK$ / MOP64,000港元 / 澳門元
-- 其他 Others: US$5,000美元 / HK$ / MOP40,000港元 / 澳門元
+| 計劃 Plan | 年齡 Age | 最低保障額 Minimum Sum Insured |
+|---|---|---|
+| FP80/100/130 | < Age 45 歲 | 香港保單 Hong Kong Policies: US$30,000美元 / HK$240,000港元；澳門保單 Macau Policies: US$25,000美元 / MOP / HK$200,000澳門元 / 港元 |
+| FP80/100/130 | ≥ Age 45 歲 | US$15,000美元 / HK$ / MOP120,000港元 / 澳門元 |
+| FP180/280 | < Age 45 歲 | US$15,000美元 / HK$ / MOP120,000港元 / 澳門元 |
+| FP180/280 | ≥ Age 45 歲 | US$8,000美元 / HK$ / MOP64,000港元 / 澳門元 |
+| 其他 Others | 任何年齡 Any age | US$5,000美元 / HK$ / MOP40,000港元 / 澳門元 |
 
 ### 最高保障額 Maximum Sum Insured
 個別考慮
@@ -27,6 +30,7 @@ Individual consideration
 ### 增加 / 減少保障額 Increase / Decrease Sum Insured
 每次更改之最低金額為5,000美元 / 40,000港元 / 400,000澳門元
 The minimum amount of increase / decrease is US$5,000 / HK$400,000 / MOP40,000
+（轉錄註：中英文版本的港元及澳門元金額不一致，以上按原文照錄。Transcriber's note: the Chinese and English versions print different HKD and MOP amounts — 40,000港元 vs HK$400,000, and 400,000澳門元 vs MOP40,000 — both are reproduced as printed.）
 
 ### 保費行政費用[Note 10] Premium Expense Charge[Note 10]
 按每次繳交的定期或非定期保費收取：在保單生效第一至第三年，費用為該段期間繳付的保費的10%，在保單生效第四至第九年內，為繳付保費的7%，而期後則為5%

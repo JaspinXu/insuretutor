@@ -60,7 +60,7 @@ def test_footnote_markers_link_to_notes(corpus):
         ("2.5% p.a.", 8),  # guaranteed interest
         ("365 days", 11),  # unemployment protection
         ("Cash Value = 賬戶價值 Account Value - 適用的退保費用", 10),
-        ("FP180/280, ≥ Age 45 歲: US$8,000", 17),
+        ("| FP180/280 | ≥ Age 45 歲 | US$8,000", 17),
         ("21 calendar days", 15),  # cooling-off
     ],
 )
