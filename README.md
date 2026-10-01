@@ -24,13 +24,13 @@ Built for the AIDF (NUS) *AI Full Stack Engineering Intern* take-home task, usin
 | Streaming chat with history and follow-up questions. Answers in the language **and script** of the question | Layout-aware PDF ingestion → bilingual hybrid retrieval (BM25 + embeddings, RRF) → every claim cites `[n]` → the cited page opens with the passage highlighted | 5 layers: input guard (PII, injection, fraud, self-harm), LLM router, relevance gate, grounded prompt, output checks (citations, **every figure must appear in a source**, prompt-leak canary) |
 
 <p align="center">
-  <img src="docs/screenshots/answer-and-source.png" alt="An answer with citations and the cited brochure page with the passage highlighted" width="100%" />
+  <img src="docs/screenshots/live-answer.png" alt="A generated answer that labels the 4% rate as current assumed and not guaranteed, cites five passages, and shows page 8 with the cited passage highlighted" width="100%" />
   <br />
-  <sub>Asking "What happens if I lose my job?": the answer cites page 11, and the source panel shows that page with the passage highlighted.</sub>
+  <sub>Asking "Is the 4% crediting interest rate guaranteed?" (running in Docker with NUS SoCLaaS, <code>qwen3.6:35b</code>): the answer says the 4% is a current assumed rate, contrasts it with the 2.5% guarantee after 15 years, and cites every claim; the source panel shows page 8 with the passage highlighted.</sub>
 </p>
 
 > [!NOTE]
-> The screenshots come from **offline mode** (no API key), where the answer is made of the best-matching cited passages. With an API key, the same UI shows an LLM-written answer with the same citation chips, sources and checks.
+> The other screenshots come from **offline mode** (no API key), where the answer is made of the best-matching cited passages. With an API key, the same UI shows an LLM-written answer like the one above, with the same citation chips, sources and checks.
 
 ---
 
@@ -72,16 +72,20 @@ Open **http://localhost:8000**.
 | **No key** | Works out of the box in **offline mode**: same retrieval, citations and guardrails, but answers are the most relevant passages instead of generated text |
 
 > [!TIP]
+> **On Windows**, Docker Desktop needs hardware virtualization (enabled in the BIOS) and WSL 2 (`wsl --install --no-distribution`, then reboot). Without them the engine never starts.
+>
 > **In mainland China**, Hugging Face may be unreachable during the build. The build still succeeds and the app falls back to keyword retrieval. To get embeddings, build through a mirror: `HF_ENDPOINT=https://hf-mirror.com docker compose build`.
 
 Useful commands:
 
 ```bash
-docker compose exec insuretutor python -m eval.run retrieval   # retrieval metrics
-docker compose exec insuretutor python -m eval.run guardrails  # guardrail regression suite
-docker compose exec insuretutor python -m eval.run answers     # answer quality (needs an API key)
-curl localhost:8000/api/health                                 # provider / model / index status
+docker compose exec insuretutor python -m eval.run retrieval --router  # retrieval metrics (+ LLM rewrites)
+docker compose exec insuretutor python -m eval.run guardrails           # guardrail regression suite
+docker compose exec insuretutor python -m eval.run answers              # answer quality (needs an API key)
+curl localhost:8000/api/health                                          # provider / model / index status
 ```
+
+Eval reports are saved in the container's volume under `/app/var/eval-reports/`. Run one suite at a time against SoCLaaS; it rate-limits bursts.
 
 ---
 
@@ -113,6 +117,14 @@ In this example the UI is set to 繁體中文:
 
 <p align="center">
   <img src="docs/screenshots/guardrails.png" alt="Blocked injection, grounded fraud refusal citing page 15, and a redacted phone number" width="80%" />
+</p>
+
+### Without an API key
+
+Offline mode quotes the best-matching lines of each cited passage in the reader's language, labelled with the heading they sit under.
+
+<p align="center">
+  <img src="docs/screenshots/answer-and-source.png" alt="Offline answer to 'What happens if I lose my job?' quoting three unemployment passages, with page 11 highlighted" width="100%" />
 </p>
 
 ### Dark mode and mobile
@@ -439,7 +451,7 @@ All settings are environment variables (see `backend/app/config.py`):
 
 ## 9. Limitations and next steps
 
-- **Answer quality is measured on one live model so far** (SoCLaaS `qwen3.6:35b`, §6). Claude and OpenAI are tested only against a fake wire-format server. The answer suite is small (15 questions) and checks facts with regular expressions; an LLM-as-judge faithfulness score would be the next step.
+- **Answer quality is measured on one live model so far** (SoCLaaS `qwen3.6:35b`, §6). Claude and OpenAI are tested only against a fake wire-format server. The answer suite is small (15 questions) and checks facts with regular expressions, so it misses one failure seen by hand: asked "What happens if I lose my job?", `qwen3.6:35b` sometimes chains facts from two passages into a rule no source states (e.g. that the policy terminates when the 365-day Special Grace Period ends; the brochure's lapse rule is about the 31-day grace period). A prompt rule against chaining conditions did not reduce it (3 of 6 runs before and after), so it was not kept. A claim-level faithfulness check (LLM-as-judge against the cited passage) is the next step.
 - **Overrides are manual.** A vision-LLM transcription step (render the page to Markdown, then have a human review the diff) would scale the "verified page" approach to many documents.
 - **Scale-out.** The index and the rate limiter live in each process. For many documents and users, move to pgvector or Qdrant, a shared rate limiter (Redis), and real authentication.
 - **Retrieval.** Add a cross-encoder reranker if the corpus grows. The relevance gate uses a BM25 threshold that would need re-tuning for each corpus.
