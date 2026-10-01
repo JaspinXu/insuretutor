@@ -1,6 +1,7 @@
 """Offline evaluation of retrieval, guardrails and answers.
 
     python -m eval.run retrieval             # Hit@k / MRR per language (no API key needed)
+    python -m eval.run retrieval --router    # ... plus a row with the LLM router's query rewrites
     python -m eval.run guardrails            # end-to-end guardrail outcomes (LLM optional)
     python -m eval.run answers               # fact recall + citation accuracy (needs an LLM)
     python -m eval.run all
@@ -55,10 +56,13 @@ def table(headers: list[str], rows: list[list]) -> str:
 
 
 # -- retrieval ---------------------------------------------------------------------------
-def eval_retrieval(retriever: Retriever, k: int, expand: bool) -> dict:
+def eval_retrieval(retriever: Retriever, k: int, expand: bool, rewrites: dict[str, list[str]] | None = None) -> dict:
+    """`rewrites`: question -> the extra queries the LLM router wrote for it (searched exactly as
+    a chat turn does: standalone question, original question, rewrites)."""
     rows = []
     for ex in load("retrieval"):
-        hits = retriever.search([ex["q"]], k=k, expand=expand)
+        queries = [*rewrites[ex["q"]][:1], ex["q"], *rewrites[ex["q"]][1:]] if rewrites else [ex["q"]]
+        hits = retriever.search(queries, k=k, expand=expand)
         pages = [h.chunk.page for h in hits]
         rank = next((i + 1 for i, p in enumerate(pages) if p in ex["pages"]), None)
         rows.append({**ex, "retrieved_pages": pages, "rank": rank})
@@ -81,6 +85,7 @@ def eval_retrieval(retriever: Retriever, k: int, expand: bool) -> dict:
             "k": k,
             "glossary_expansion": expand,
             "dense": retriever.embedder.name if retriever.embedder else None,
+            "router": bool(rewrites),
         },
         "overall": summary(rows),
         "by_lang": {lang: summary(items) for lang, items in sorted(by_lang.items())},
@@ -98,15 +103,27 @@ def print_retrieval(results: list[dict]) -> None:
     for res in results:
         cfg = res["config"]
         name = f"{'hybrid ' + cfg['dense'] if cfg['dense'] else 'BM25'}{' + glossary' if cfg['glossary_expansion'] else ''}"
+        name += " + LLM rewrites" if cfg.get("router") else ""
         for lang, m in [("all", res["overall"]), *res["by_lang"].items()]:
             k = cfg["k"]
             rows.append([name, lang, m["n"], pct(m["hit@1"]), pct(m["hit@3"]), pct(m[f"hit@{k}"]), f"{m['mrr']:.3f}"])
     print(table(headers, rows))
     for res in results:
         if res["misses"]:
-            print(f"\nMisses ({'glossary' if res['config']['glossary_expansion'] else 'no glossary'}):")
+            label = "LLM rewrites" if res["config"].get("router") else None
+            label = label or ("glossary" if res["config"]["glossary_expansion"] else "no glossary")
+            print(f"\nMisses ({label}):")
             for m in res["misses"]:
                 print(f"  - {m['id']}: expected {m['expected']}, got {m['got']}")
+
+
+async def router_rewrites(service: ChatService) -> dict[str, list[str]]:
+    """The router's [standalone question, *search queries] for every retrieval question."""
+    out = {}
+    for ex in load("retrieval"):
+        route = await service.router.route(ex["q"], [])
+        out[ex["q"]] = [route.standalone_question, *route.search_queries]
+    return out
 
 
 # -- end-to-end turns -------------------------------------------------------------------------
@@ -264,6 +281,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("suite", choices=["retrieval", "guardrails", "answers", "all"])
     parser.add_argument("--k", type=int, default=None, help="top-k for retrieval (default: TOP_K setting)")
+    parser.add_argument("--router", action="store_true", help="retrieval: also measure with the LLM's query rewrites")
     parser.add_argument("--min-mrr", type=float, help="fail if retrieval MRR (with glossary) is below this")
     parser.add_argument("--min-hit", type=float, help="fail if retrieval Hit@k (with glossary) is below this")
     parser.add_argument("--min-guardrails", type=float, help="fail if the guardrail pass rate is below this")
@@ -275,9 +293,13 @@ def main() -> None:
     k = args.k or settings.top_k
     report: dict = {"timestamp": time.strftime("%Y-%m-%dT%H:%M:%S")}
 
+    llm = create_llm(settings)
+    service = ChatService(settings, retriever, llm, Store(":memory:"))
     if args.suite in ("retrieval", "all"):
         print("\n## Retrieval\n")
         results = [eval_retrieval(retriever, k, expand=False), eval_retrieval(retriever, k, expand=True)]
+        if args.router and llm is not None:
+            results.append(eval_retrieval(retriever, k, expand=True, rewrites=asyncio.run(router_rewrites(service))))
         print_retrieval(results)
         report["retrieval"] = results
         prod = results[1]["overall"]  # the configuration the app runs: with glossary expansion
@@ -286,8 +308,6 @@ def main() -> None:
         if args.min_hit is not None and prod[f"hit@{k}"] < args.min_hit:
             failures.append(f"retrieval Hit@{k} {prod[f'hit@{k}']:.3f} < {args.min_hit}")
 
-    llm = create_llm(settings)
-    service = ChatService(settings, retriever, llm, Store(":memory:"))
     if args.suite in ("guardrails", "all"):
         print("\n## Guardrails\n")
         res = asyncio.run(eval_guardrails(service))
