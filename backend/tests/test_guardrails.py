@@ -144,6 +144,15 @@ def test_unsupported_numbers_are_flagged():
     assert out.unverified_numbers == ["400"] and "unverified_numbers" in out.flags
 
 
+def test_small_percentages_are_checked():
+    # Small integers are skipped as ambiguous counts, but a rate never is.
+    out = _check("The crediting rate is 5% [2].")
+    assert out.unverified_numbers == ["5"]
+    assert _check("The crediting rate is 4% (4.0 per cent) [2].").unverified_numbers == []
+    assert _check("派息率為5％ [2]。", lang="zh-Hant").unverified_numbers == ["5"]
+    assert _check("You can do this 5 times [2].").unverified_numbers == []
+
+
 def test_numbers_inside_chinese_text_are_checked():
     out = _check("失業時可暫停繳費長達400日 [1]。", lang="zh-Hant")
     assert out.unverified_numbers == ["400"]

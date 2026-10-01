@@ -2,8 +2,8 @@
 
 * Citations: normalise "[1, 3]" -> "[1][3]", drop citations to sources that
   were not provided, and flag answers that cite nothing.
-* Numeric grounding: every figure in the answer (percentages, amounts, ages,
-  periods) must appear in the cited sources — or in the user's own question.
+* Numeric grounding: every figure in the answer (percentages of any size,
+  amounts, ages, periods) must appear in the cited sources — or in the user's own question.
   Figures that don't are flagged to the user as "could not be verified"
   (they may be calculations, or hallucinations). In insurance, a wrong number
   is the most harmful kind of wrong answer, and this check is cheap and exact.
@@ -49,6 +49,8 @@ _ZH_DIGITS = {
 _ZH_NUMBER_RE = re.compile(r"[零一二兩两三四五六七八九十]+")
 
 MIN_CHECKED_INTEGER = 10  # small counts ("2 times", "3 years") are too ambiguous to check
+# ...but a percentage is never just a count: "5%" instead of "4%" is exactly the error to catch.
+_PERCENT_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(?:%|％|percent\b|per cent\b)", re.I)
 
 
 def _canon(num: str) -> str:
@@ -160,8 +162,9 @@ def check_output(
     supported = set().union(*(numbers_in(s["text"], spelled=True) for s in evidence)) if evidence else set()
     supported |= numbers_in(allowed_text, spelled=True)
     body = _CITE_RE.sub(" ", _ORDINAL_LINE_RE.sub(" ", text))
+    percents = {_canon(p) for p in _PERCENT_RE.findall(body)}
     unverified = sorted(
-        (n for n in numbers_in(body) if _checkable(n) and n not in supported),
+        (n for n in numbers_in(body) if (_checkable(n) or n in percents) and n not in supported),
         key=lambda n: float(n),
     )
     return OutputCheck(text=text, cited=cited, invalid_citations=invalid, unverified_numbers=unverified)
