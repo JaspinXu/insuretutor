@@ -57,12 +57,12 @@ def table(headers: list[str], rows: list[list]) -> str:
 
 # -- retrieval ---------------------------------------------------------------------------
 def eval_retrieval(retriever: Retriever, k: int, expand: bool, rewrites: dict[str, list[str]] | None = None) -> dict:
-    """`rewrites`: question -> the extra queries the LLM router wrote for it (searched exactly as
-    a chat turn does: standalone question, original question, rewrites)."""
+    """`rewrites`: question -> [standalone question, *keyword queries] from the LLM router, searched
+    exactly as a chat turn does (question and standalone at full weight, keyword queries pooled)."""
     rows = []
     for ex in load("retrieval"):
-        queries = [*rewrites[ex["q"]][:1], ex["q"], *rewrites[ex["q"]][1:]] if rewrites else [ex["q"]]
-        hits = retriever.search(queries, k=k, expand=expand)
+        planned = rewrites[ex["q"]] if rewrites else []
+        hits = retriever.search([ex["q"], *planned[:1]], k=k, expand=expand, rewrites=planned[1:])
         pages = [h.chunk.page for h in hits]
         rank = next((i + 1 for i, p in enumerate(pages) if p in ex["pages"]), None)
         rows.append({**ex, "retrieved_pages": pages, "rank": rank})

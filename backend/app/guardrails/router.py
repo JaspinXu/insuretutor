@@ -92,12 +92,11 @@ def heuristic_route(message: str, history: list[dict], glossary: Glossary | None
     if not (_DOMAIN_RE.search(probe) or (glossary and glossary.expand(message)) or is_follow_up):
         return Route("out_of_scope", message, reason="no insurance vocabulary")
     intent = "advice_request" if _ADVICE_RE.search(probe) else "plan_question"
-    queries = [message]
-    # Short follow-ups ("and the Incremental one?") borrow the previous question for retrieval.
+    # Short follow-ups ("and the Incremental one?") borrow the previous question: without an LLM
+    # to rewrite them, "previous question + follow-up" is the best standalone question available.
     last_user = next((m["content"] for m in reversed(history) if m["role"] == "user"), None)
-    if last_user and len(message) < 40:
-        queries.append(f"{last_user} {message}")
-    return Route(intent, message, queries, reason="keyword heuristic")
+    standalone = f"{last_user} {message}" if last_user and len(message) < 40 else message
+    return Route(intent, standalone, [], reason="keyword heuristic")
 
 
 class Router:

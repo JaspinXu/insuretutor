@@ -5,9 +5,13 @@ Option", "保證可保權益", "US$50,000"), dense vectors catch paraphrases ("l
 job" -> "made redundant"). RRF fuses *ranks*, so the two score scales never
 need calibrating against each other.
 
-Several queries can be searched at once (the user's question plus the
-router's rewrites in English and Traditional Chinese); every ranked list
-votes in the same RRF pool.
+Several queries can be searched at once: the user's question and the
+router's standalone rewrite each vote as a full ranked list, while the
+router's keyword queries (English + Traditional Chinese) are pooled into one
+list at half weight. Measured with live rewrites, giving each keyword query
+its own full vote let generic terms outvote the question (MRR 0.855 -> 0.791
+on the retrieval eval); pooled at half weight they add recall instead
+(0.893).
 
 Dense scoring is multi-vector: each chunk is embedded as a few short windows
 and scored by its best window, because small multilingual encoders truncate
@@ -43,6 +47,7 @@ log = logging.getLogger(__name__)
 RRF_K = 60
 WINDOW_CHARS = 220
 EXPANSION_WEIGHT = 0.5  # glossary terms nudge the ranking; the user's own words dominate
+REWRITE_WEIGHT = 0.5  # RRF vote of the pooled router keyword queries, relative to the question
 LOW_PRIORITY_FACTOR = 0.8  # fused-score multiplier for cover / marketing-summary pages
 
 _NOTE_RE = re.compile(r"\[Note \d+\]")
@@ -150,38 +155,44 @@ class Retriever:
                 weights.setdefault(term, EXPANSION_WEIGHT)
         return weights
 
-    def search(self, queries: list[str], k: int = 6, expand: bool = True) -> list[Hit]:
-        """Search several phrasings of one question; every ranked list votes in RRF.
+    def search(
+        self, queries: list[str], k: int = 6, expand: bool = True, rewrites: list[str] | None = None
+    ) -> list[Hit]:
+        """Search phrasings of one question; every ranked list votes in RRF.
 
+        `queries` (the question, its standalone rewrite) vote with full weight each.
+        `rewrites` (the router's keyword queries) are pooled into one extra list that
+        votes at REWRITE_WEIGHT, so they add recall without outvoting the question.
         Glossary terms are added to the keyword query they were triggered by, at
         reduced weight (classic weighted query expansion) rather than searched
-        as separate lists, so an expansion boosts the right passages without
-        outvoting the question itself."""
+        as separate lists, for the same reason."""
         queries = [q for q in dict.fromkeys(q.strip() for q in queries) if q]
-        lexical = [self._weighted_query(q, expand) for q in queries]
+        pooled = " ".join(r.strip() for r in rewrites or [] if r.strip() and r.strip() not in queries)
+        lists = [(q, 1.0) for q in queries] + ([(pooled, REWRITE_WEIGHT)] if pooled else [])
+        lexical = [(self._weighted_query(q, expand), w) for q, w in lists]
         n = len(self.chunks)
-        if not queries or n == 0:
+        if not lists or n == 0:
             return []
         fused = np.zeros(n, dtype=np.float64)
         best_bm25 = np.zeros(n, dtype=np.float32)
         best_dense = np.full(n, -1.0, dtype=np.float32) if self.dense_enabled else None
 
-        for q in lexical:
+        for q, weight in lexical:
             s = self.bm25.scores(q)
             best_bm25 = np.maximum(best_bm25, s)
             ranked = [i for i in np.argsort(-s) if s[i] > 0]
             for rank, i in enumerate(ranked):
-                fused[i] += 1.0 / (RRF_K + rank + 1)
+                fused[i] += weight / (RRF_K + rank + 1)
 
         if self.dense_enabled and best_dense is not None:
-            qv = self.embedder.embed_queries(queries)  # type: ignore[union-attr]
-            sims = qv @ self.window_vectors.T  # (queries, windows)
-            for row in sims:
+            qv = self.embedder.embed_queries([q for q, _ in lists])  # type: ignore[union-attr]
+            sims = qv @ self.window_vectors.T  # (lists, windows)
+            for row, (_, weight) in zip(sims, lists, strict=True):
                 per_chunk = np.full(n, -1.0, dtype=np.float32)
                 np.maximum.at(per_chunk, self.window_owner, row)
                 best_dense = np.maximum(best_dense, per_chunk)
                 for rank, i in enumerate(np.argsort(-per_chunk)):
-                    fused[i] += self.dense_weight / (RRF_K + rank + 1)
+                    fused[i] += weight * self.dense_weight / (RRF_K + rank + 1)
 
         fused *= self.prior
         order = np.argsort(-fused)[:k]

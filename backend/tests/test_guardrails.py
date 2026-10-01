@@ -255,4 +255,5 @@ def test_heuristic_router():
     r = heuristic_route(
         "and the Incremental one?", [{"role": "user", "content": "What is the death benefit of Level Benefit?"}]
     )
-    assert r.intent == "plan_question" and len(r.search_queries) == 2
+    assert r.intent == "plan_question"
+    assert r.standalone_question == "What is the death benefit of Level Benefit? and the Incremental one?"

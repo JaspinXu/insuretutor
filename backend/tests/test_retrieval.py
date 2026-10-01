@@ -50,6 +50,23 @@ def test_bm25_retrieval_finds_expected_page(retriever, query, page):
     assert top_pages & page, f"{query!r}: expected one of {page}, got {top_pages}"
 
 
+def test_router_keyword_queries_cannot_outvote_the_question(retriever):
+    """Live router rewrites for "lose my job" used generic terms the brochure doesn't feature
+    (automatic premium loan, policy lapse). Pooled at half weight they must not push the
+    Unemployment Protection pages out of the top results."""
+    rewrites = [
+        "premium payment default 繳費逾期",
+        "policy lapse 保單失效",
+        "cash value 現金價值",
+        "automatic premium loan",
+    ]
+    question = "What happens if I lose my job?"
+    pooled = {h.chunk.page for h in retriever.search([question], k=3, rewrites=rewrites)}
+    assert {11, 16} <= pooled
+    # Searched as separate full-weight lists (the old fusion), they pushed both pages out of the top 6.
+    assert not {11, 16} & {h.chunk.page for h in retriever.search([question, *rewrites], k=6)}
+
+
 def test_out_of_scope_query_has_no_lexical_match(retriever):
     assert all(h.bm25 == 0 for h in retriever.search(["weather in Singapore today"], k=3))
 

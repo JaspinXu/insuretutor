@@ -299,11 +299,11 @@ class ChatService:
         # 3. Retrieve ---------------------------------------------------------------------
         yield "status", {"stage": "retrieving"}
         t0 = time.perf_counter()
-        queries = [route.standalone_question, check.text, *route.search_queries]
-        hits = await asyncio.to_thread(self.retriever.search, queries, self.settings.top_k)
+        queries = [check.text, route.standalone_question]
+        hits = await asyncio.to_thread(self.retriever.search, queries, self.settings.top_k, True, route.search_queries)
         timings["retrieve_ms"] = _ms(t0)
         retrieval_info = {
-            "queries": list(dict.fromkeys(q for q in queries if q)),
+            "queries": list(dict.fromkeys(q for q in [*queries, *route.search_queries] if q)),
             "dense": self.retriever.dense_enabled,
             "best_bm25": round(max((h.bm25 for h in hits), default=0.0), 2),
         }
