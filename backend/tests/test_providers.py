@@ -253,3 +253,35 @@ def test_anthropic_models_without_effort(server, monkeypatch):
     asyncio.run(collect(p))
     body = server.requests[-1]["body"]
     assert "output_config" not in body and "fallbacks" not in body
+
+
+def _soclaas_settings(**kw):
+    # _env_file=None and explicit Nones: a developer's own .env or CI env vars must not leak in.
+    base = {"llm_provider": "auto", "anthropic_api_key": None, "openai_api_key": None, "soclaas_api_key": "k"}
+    return Settings(_env_file=None, **{**base, **kw})
+
+
+def test_soclaas_key_alone_selects_the_gateway_and_its_default_model():
+    s = _soclaas_settings()
+    assert s.provider == "soclaas" and s.answer_model == "qwen3.6:35b"
+    assert s.compat_api_key == "k" and s.compat_base_url == "https://soclaas-api.comp.nus.edu.sg/v1"
+    assert _soclaas_settings(soclaas_url="https://example.org/v1/").compat_base_url == "https://example.org/v1"
+    # An explicit OpenAI key still wins in auto mode, and keeps its own base URL.
+    s = _soclaas_settings(openai_api_key="o", openai_base_url="https://api.example/v1")
+    assert s.provider == "openai" and (s.compat_api_key, s.compat_base_url) == ("o", "https://api.example/v1")
+
+
+def test_soclaas_chat_goes_through_the_openai_compatible_client(server):
+    p = OpenAIProvider(_soclaas_settings(soclaas_url=f"http://127.0.0.1:{server.port}", llm_model="m"))
+    data, _, text, _ = asyncio.run(json_then_stream(p))
+    assert p.provider == "soclaas" and data == ROUTE_JSON and text == "Up to 365 days [1]."
+    assert server.requests[0]["path"] == "/v1/chat/completions"
+    assert server.requests[0]["headers"]["authorization"] == "Bearer k"
+
+
+def test_soclaas_embeddings_default_to_bge_m3():
+    from app.rag.embeddings import OpenAIEmbedder, create_embedder
+
+    e = create_embedder(_soclaas_settings(embedding_backend="openai"))
+    assert isinstance(e, OpenAIEmbedder) and e.name == "openai:bge-m3"
+    assert str(e.client.base_url).startswith("https://soclaas-api.comp.nus.edu.sg/v1")

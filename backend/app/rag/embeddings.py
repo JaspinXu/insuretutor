@@ -86,16 +86,17 @@ def create_embedder(settings: Settings) -> Embedder | None:
                 model_path=os.environ.get("EMBEDDING_MODEL_PATH") or None,
             )
         if backend == "openai":
-            key = settings.embedding_api_key or settings.openai_api_key
+            key = settings.embedding_api_key or settings.compat_api_key
             if not key:
-                log.warning("EMBEDDING_BACKEND=openai but no EMBEDDING_API_KEY/OPENAI_API_KEY; using BM25 only")
+                log.warning(
+                    "EMBEDDING_BACKEND=openai but no EMBEDDING_API_KEY/OPENAI_API_KEY/SOCLAAS_API_KEY; BM25 only"
+                )
                 return None
+            base_url = settings.embedding_base_url or settings.compat_base_url
             model = settings.embedding_model
-            if model.startswith("sentence-transformers/"):
-                model = "text-embedding-3-small"
-            return OpenAIEmbedder(
-                model, key, settings.embedding_base_url or settings.openai_base_url, settings.llm_timeout_s
-            )
+            if model.startswith("sentence-transformers/"):  # the local default; pick the endpoint's own model
+                model = "bge-m3" if base_url and "soclaas" in base_url else "text-embedding-3-small"
+            return OpenAIEmbedder(model, key, base_url, settings.llm_timeout_s)
     except Exception as exc:  # noqa: BLE001 - any failure means "run without dense retrieval"
         log.warning("Dense embeddings unavailable (%s: %s); falling back to BM25 only", type(exc).__name__, exc)
     return None

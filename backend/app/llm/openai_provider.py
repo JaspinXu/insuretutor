@@ -1,4 +1,4 @@
-"""OpenAI and OpenAI-compatible chat APIs (OpenAI, DeepSeek, Qwen/DashScope, Ollama...).
+"""OpenAI and OpenAI-compatible chat APIs (OpenAI, NUS SoCLaaS, DeepSeek, Qwen/DashScope, Ollama...).
 
 Compatible servers differ in which optional parameters they accept, so each
 call degrades step by step on a 400: drop JSON mode / usage streaming, then
@@ -37,9 +37,10 @@ class OpenAIProvider(LLMProvider):
     provider = "openai"
 
     def __init__(self, settings: Settings) -> None:
+        self.provider = "soclaas" if settings.provider == "soclaas" else "openai"
         self.client = AsyncOpenAI(
-            api_key=settings.openai_api_key,
-            base_url=settings.openai_base_url or None,
+            api_key=settings.compat_api_key,
+            base_url=settings.compat_base_url or None,
             timeout=settings.llm_timeout_s,
             max_retries=2,
         )

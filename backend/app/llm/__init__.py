@@ -10,7 +10,7 @@ def create_llm(settings: Settings) -> LLMProvider | None:
         from app.llm.anthropic_provider import AnthropicProvider
 
         return AnthropicProvider(settings)
-    if settings.provider == "openai":
+    if settings.provider in ("openai", "soclaas"):
         from app.llm.openai_provider import OpenAIProvider
 
         return OpenAIProvider(settings)
