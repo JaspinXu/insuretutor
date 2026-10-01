@@ -156,6 +156,18 @@ def test_offline_mode_answers_extractively(make_client):
     assert any(s["page"] == 15 for s in f["sources"] if s["cited"])
 
 
+def test_offline_answer_quotes_the_matching_row_and_heading(make_client):
+    """Lay wording ("lose my job") shares no words with the brochure ("Unemployment Benefit"), so
+    the excerpt uses the glossary and row headings; each quote is labelled with its own heading."""
+    with make_client(None) as client:
+        job = final(chat(client, "What happens if I lose my job?"))["answer"]
+        suicide = final(chat(client, "What if the insured commits suicide within the first year?"))["answer"]
+    bullets = [ln for ln in job.splitlines() if ln.startswith("- ")]
+    assert bullets and all("Unemployment" in ln for ln in bullets)
+    assert "Guaranteed interest" not in job
+    assert "Key Exclusions" in suicide.splitlines()[2]
+
+
 def test_offline_out_of_scope(make_client):
     with make_client(None) as client:
         f = final(chat(client, "What's the weather in Singapore today?"))

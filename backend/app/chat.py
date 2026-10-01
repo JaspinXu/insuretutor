@@ -20,7 +20,7 @@ import logging
 import re
 import secrets
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
 
 from app.config import Settings
@@ -63,21 +63,28 @@ def _cjk_ratio(text: str) -> float:
     return sum(1 for c in letters if is_cjk_char(c)) / len(letters) if letters else 0.0
 
 
-def excerpt(text: str, lang: Lang, query: str = "", max_chars: int = 300) -> str:
-    """Best-matching lines of a (bilingual) chunk in the reader's language — the
-    offline mode's stand-in for a generated answer."""
+def excerpt(text: str, lang: Lang, query: str = "", max_chars: int = 300, terms: Sequence[str] = ()) -> tuple[str, str]:
+    """Best-matching lines of a (bilingual) chunk in the reader's language, and the heading
+    the best one sits under — the offline mode's stand-in for a generated answer.
+
+    `terms` are extra query words (glossary expansions, the router's search queries): lay
+    questions rarely share words with the brochure ("lose my job" vs "Unemployment Benefit")."""
     raw = re.sub(r"(?<=[。！？」）])\s*(?=[A-Za-z“\"])", "\n", text)  # split "中文。 English" lines
-    lines = []
+    rows: list[tuple[str, str]] = []  # (heading, line)
+    heading = ""
     for ln in raw.splitlines():
         if ln.lstrip().startswith("#"):
-            continue  # headings are already shown as the section label
+            heading = _NOTE_RE.sub("", ln.strip().lstrip("#")).strip()
+            continue
         ln = _NOTE_RE.sub("", ln).lstrip("|- ").replace("|", " ").strip()
         if ln and not set(ln) <= set("-: "):
-            lines.append(ln)
+            rows.append((heading, ln))
     want_zh = lang != "en"
-    picked = [ln for ln in lines if (_cjk_ratio(ln) > 0.3) == want_zh] or lines
-    q = set(tokenize(query))
-    overlap = [len(q & set(tokenize(ln))) for ln in picked]
+    picked = [r for r in rows if (_cjk_ratio(r[1]) > 0.3) == want_zh] or rows
+    q = set(tokenize(" ".join([query, *terms])))
+    # A line also scores through its heading, so a table row such as "A Special Grace Period
+    # of up to 365 days" is found through its row label "Unemployment Benefit".
+    overlap = [len(q & set(tokenize(ln))) + len(q & set(tokenize(h))) for h, ln in picked]
     best = max(overlap, default=0)
     if best:
         # Only lines that match the question about as well as the best one.
@@ -87,12 +94,13 @@ def excerpt(text: str, lang: Lang, query: str = "", max_chars: int = 300) -> str
     chosen: list[int] = []
     used = 0
     for i in order:
-        if chosen and used + len(picked[i]) > max_chars:
+        if chosen and used + len(picked[i][1]) > max_chars:
             break
         chosen.append(i)
-        used += len(picked[i])
-    out = " ".join(picked[i] for i in sorted(chosen))
-    return out if len(out) <= max_chars + 40 else out[:max_chars].rstrip() + "…"
+        used += len(picked[i][1])
+    out = " ".join(picked[i][1] for i in sorted(chosen))
+    out = out if len(out) <= max_chars + 40 else out[:max_chars].rstrip() + "…"
+    return (picked[order[0]][0] if order else ""), out
 
 
 class ChatService:
@@ -315,7 +323,7 @@ class ChatService:
         system = answer_system(lang, self.canary)
         mode = self.mode
         if self.llm is None:
-            answer = self._extractive(hits, lang, "offline_intro", route.standalone_question or check.text)
+            answer = self._extractive(hits, lang, "offline_intro", route.standalone_question or check.text, route)
         else:
             messages = [
                 *history,
@@ -350,7 +358,7 @@ class ChatService:
             except LLMError as exc:
                 log.error("LLM generation failed: %s", exc)
                 mode = "fallback"
-                answer = self._extractive(hits, lang, "llm_unavailable", route.standalone_question or check.text)
+                answer = self._extractive(hits, lang, "llm_unavailable", route.standalone_question or check.text, route)
         timings["generate_ms"] = _ms(t0)
 
         # 5. Output guard -----------------------------------------------------------------
@@ -386,12 +394,17 @@ class ChatService:
             metrics=metrics(route=route_info, retrieval=retrieval_info),
         )
 
-    def _extractive(self, hits: list[Hit], lang: Lang, intro: str, query: str) -> str:
+    def _extractive(self, hits: list[Hit], lang: Lang, intro: str, query: str, route: Route) -> str:
         # Quote passages the reader can read: skip chunks written only in the other language
         # (citation numbers keep pointing at the original source positions).
         readable = {"en": ("en", "mixed")}.get(lang, ("zh-Hant", "mixed"))
         numbered = [(n, h) for n, h in enumerate(hits, 1) if h.chunk.lang in readable] or list(enumerate(hits, 1))
+        terms = [*self.retriever.expansions(query), *route.search_queries]
         lines = [message(intro, lang), ""]
         for n, h in numbered[:3]:
-            lines.append(f"- **{h.chunk.section}** — {excerpt(h.chunk.text, lang, query)} [{n}]")
+            heading, text = excerpt(h.chunk.text, lang, query, terms=terms)
+            # Label the quote with the heading it sits under, not the chunk's first heading.
+            title = h.chunk.section.split(" › ")[0]
+            label = f"{title} › {heading}" if heading and heading not in title else h.chunk.section
+            lines.append(f"- **{label}** — {text} [{n}]")
         return "\n".join(lines)
