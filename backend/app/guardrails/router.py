@@ -40,7 +40,8 @@ _DOMAIN_RE = re.compile(
     r"guarantee\w*|ages?|death|die|dies|illness|disab\w*|unemploy\w*|jobs?|cooling|cancel\w*|refunds?|exclu\w*|"
     r"riders?|supplementary|currenc\w*|pay\w*|lapse\w*|grace|maturity|matures?|beneficiar\w*|underwrit\w*|"
     r"disclos\w*|medical|smok\w*|universal life|flexi\w*|prime saver|yf life|savings?|invest\w*|retire\w*|"
-    r"education|protection|insured|owner)\b|"
+    r"education|protection|insured|owner|appl(?:y|ying|ied|ication|icants?)|conditions?|pre-existing|"
+    r"diabet\w*|hypertension|cancer|heart)\b|"
     r"保险|保单|保费|保障|保额|计划|寿险|理赔|赔偿|赔|退保|提取|提款|现金价值|账户价值|利息|派息|回报|收益|利率|费用|"
     r"收费|保证|年龄|身故|死|疾病|病|失业|冷静期|取消|不保|附加|货币|缴费|缴付|期满|宽限|投保|受保|披露|吸烟|万用|"
     r"万通|储蓄|供款|退休|教育",

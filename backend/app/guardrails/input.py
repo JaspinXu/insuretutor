@@ -86,18 +86,43 @@ INJECTION = _rx(
     r"\bsystem prompt\b",
     r"\b(you are now|you're now|from now on,? you (?:are|will)|pretend (?:to be|you are)|roleplay as|role-play as|act as (?:an? )?(?:ai|assistant|chatbot|dan|unfiltered|unrestricted|different|another))\b",
     r"\b(developer mode|jailbreak|jailbroken|do anything now|dan mode)\b",
+    r"\b(?:debug|admin|god|maintenance|sudo|root) mode\b",
+    # Prompt extraction without the word "prompt": "repeat everything above", "your initial instructions".
+    r"\b(repeat|print|output|show|copy|reproduce|recite|write out)\b.{0,30}\b(everything|(?:the )?(?:text|words|content|messages?|lines?))\b.{0,15}\b(above|before this|preceding|so far)\b",
+    r"\babove this line\b|\bstarting with\s*[\"'“]?you are\b",
+    r"\b(?:your|the) (?:initial|original|first|hidden|secret|internal) (?:instructions?|message|prompt|rules|configuration|config)\b",
+    r"\bwhat were you (?:told|instructed|given)\b",
+    r"\b(?:ai|assistant|model|chatbot|bot)\b.{0,20}\b(?:without|with no|no) (?:any )?(?:restrictions|rules|filters|limits|limitations|guardrails|censorship)\b",
     r"<\|?(?:im_start|system|endoftext)\|?>|\[/?(?:system|inst)\]|###\s*(?:system|instruction)",
     r"(忽略|无视|忘记|忘掉|绕过|跳过).{0,10}(之前|以上|上面|前面|先前|所有|全部|你的|系统).{0,6}(指令|指示|提示|规则|设定|要求|限制)",
     r"(显示|输出|告诉我|打印|泄露|重复|给我看).{0,10}(系统提示|提示词|系统指令|初始指令|你的指令|你的规则|你的设定)",
     r"系统提示词|系统提示",
     r"(你现在是|从现在开始你是|从现在起你是|假装你是|越狱|开发者模式)",
+    r"(调试|管理员|上帝|维护)模式",
+    r"(原样|逐字|原封不动)地?(输出|重复|打印|复述|显示|写出)",
+    r"(第一条|最初的?|最开始的?|之前收到的|收到的第一条)(消息|指令|提示|指示)",
+    r"(没有|不受|无|解除)(任何)?(限制|约束|规则|过滤)的?(ai|人工智能|助手|模型|机器人)",
 )
 
+# Health facts an applicant must disclose; shared by the English fraud patterns.
+_HEALTH_EN = (
+    r"condition|illness|disease|diagnos\w*|smok\w*|medical|health|cancer|diabet\w*|hypertension|blood pressure|"
+    r"heart|stroke|hiv|tumou?r|pregnan\w*|alcohol|drink\w*|drugs?|surgery|hospital\w*|depress\w*|sick|ill"
+)
+_HEALTH_ZH = r"病|病史|吸烟|抽烟|血压|肿瘤|癌|怀孕|手术|住院|饮酒|喝酒|吸毒|健康|体检|诊断"
+
 FRAUD = _rx(
-    r"\b(hide|conceal|not (?:tell|disclose|mention|declare)|without (?:telling|disclosing|declaring)|lie (?:about|on)|fake|forge|falsify|fabricate|cover up|misrepresent)\b.{0,40}\b(condition|illness|disease|diagnos\w*|smok\w*|medical|health|history|application|claim|death|document|records?|age|income|cancer)",
+    rf"\b(hide|conceal|lie (?:about|on)|fake|forge|falsify|fabricate|cover up|misrepresent)\b.{{0,40}}\b({_HEALTH_EN}|history|application|claim|death|document|records?|age|income)\b",
+    # "without saying he has cancer", "how do I not mention my diabetes", "never tell them I smoke".
+    # A personal subject is required, so "does the brochure not say anything about cancer?" passes.
+    rf"\b(?:without|not|never|don'?t|do not|avoid)\b.{{0,6}}\b(?:say(?:ing)?|tell(?:ing)?|mention(?:ing)?|disclos(?:e|ing)|declar(?:e|ing)|reveal(?:ing)?|report(?:ing)?|letting (?:them|the insurer|the insurance company) know)\b.{{0,25}}\b(?:my|his|her|our|their|i|i'm|he|she|we|they)\b.{{0,25}}\b({_HEALTH_EN})\b",
+    r"\bkeep\b.{0,30}\b(?:secret|hidden|quiet)\b.{0,20}\b(?:from )?(?:the )?(?:insurer|insurance company|underwriters?)\b",
     r"\b(fake|stage|faking|staging)\b.{0,10}\b(my |a |the )?(death|illness|disability|unemployment|redundancy|accident)",
     r"\binsurance fraud\b|\bcheat (?:the|an) insurer\b|\bscam (?:the |an )?insur",
-    r"(隐瞒|瞒报|谎报|伪造|编造|篡改|虚报|假报|假装|装作|不告诉|不申报|不如实).{0,12}(病|病史|吸烟|抽烟|健康|体检|诊断|年龄|收入|死亡|失业|理赔|申请|资料|癌)",
+    rf"(隐瞒|瞒报|谎报|伪造|编造|篡改|虚报|假报|假装|装作|不告诉|不申报|不如实).{{0,12}}({_HEALTH_ZH}|年龄|收入|死亡|失业|理赔|申请|资料)",
+    # "投保时可以不说我抽烟吗" (不说 but not 不说明), "不让保险公司知道我有高血压"
+    rf"(不说(?!明)|不讲|不提|不报|不填|漏报|少报|不透露|不写|不交代).{{0,12}}({_HEALTH_ZH})",
+    r"(不让|别让|不要让|不想让|瞒着|瞒过).{0,10}(保险公司|保险人|核保|他们|对方).{0,6}(知道|发现|查到)",
     r"骗保|假死|保险诈骗|诈骗保险|骗取保险",
 )
 
